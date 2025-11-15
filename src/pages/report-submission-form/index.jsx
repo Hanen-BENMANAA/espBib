@@ -1,0 +1,522 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Header from '../../components/ui/Header';
+import NavigationBreadcrumbs from '../../components/ui/NavigationBreadcrumbs';
+import StatusIndicatorBanner from '../../components/ui/StatusIndicatorBanner';
+import QuickActionPanel from '../../components/ui/QuickActionPanel';
+import Button from '../../components/ui/Button';
+import Icon from '../../components/AppIcon';
+import ReportMetadataForm from './components/ReportMetadataForm';
+import FileUploadSection from './components/FileUploadSection';
+import SubmissionChecklist from './components/SubmissionChecklist';
+import DraftAutoSave from './components/DraftAutoSave';
+
+const ReportSubmissionForm = () => {
+  const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({
+    title: '',
+    authorFirstName: '',
+    authorLastName: '',
+    studentNumber: '',
+    email: '',
+    specialty: '',
+    academicYear: '',
+    supervisor: '',
+    coSupervisor: '',
+    hostCompany: '',
+    defenseDate: '',
+    keywords: [],
+    abstract: '',
+    allowPublicAccess: true,
+    isConfidential: false
+  });
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [checklistData, setChecklistData] = useState({});
+  const [showBanner, setShowBanner] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState('');
+  const [bannerType, setBannerType] = useState('info');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const steps = [
+    {
+      id: 1,
+      title: 'Métadonnées',
+      description: 'Informations du rapport',
+      icon: 'FileText'
+    },
+    {
+      id: 2,
+      title: 'Fichier',
+      description: 'Téléchargement PDF',
+      icon: 'Upload'
+    },
+    {
+      id: 3,
+      title: 'Vérification',
+      description: 'Contrôle qualité',
+      icon: 'CheckCircle'
+    }
+  ];
+
+  // Load draft data on component mount
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('esprim_draft_data');
+    if (savedDraft) {
+      try {
+        const draftData = JSON.parse(savedDraft);
+        setFormData(draftData?.formData || {});
+        // Note: File data would need to be handled differently in a real app
+        showStatusBanner('Brouillon chargé avec succès', 'success');
+      } catch (error) {
+        console.error('Failed to load draft:', error);
+      }
+    }
+  }, []);
+
+  const showStatusBanner = (message, type = 'info') => {
+    setBannerMessage(message);
+    setBannerType(type);
+    setShowBanner(true);
+  };
+
+  const validateStep = (step) => {
+    const newErrors = {};
+
+    if (step === 1) {
+      if (!formData?.title || formData?.title?.length < 10) {
+        newErrors.title = 'Le titre doit contenir au moins 10 caractères';
+      }
+      if (!formData?.authorFirstName) {
+        newErrors.authorFirstName = 'Le prénom est requis';
+      }
+      if (!formData?.authorLastName) {
+        newErrors.authorLastName = 'Le nom est requis';
+      }
+      if (!formData?.studentNumber) {
+        newErrors.studentNumber = 'Le numéro d\'étudiant est requis';
+      }
+      if (!formData?.email || !formData?.email?.includes('@esprim.tn')) {
+        newErrors.email = 'Email institutionnel @esprim.tn requis';
+      }
+      if (!formData?.specialty) {
+        newErrors.specialty = 'La spécialité est requise';
+      }
+      if (!formData?.academicYear) {
+        newErrors.academicYear = 'L\'année académique est requise';
+      }
+      if (!formData?.supervisor) {
+        newErrors.supervisor = 'L\'encadrant principal est requis';
+      }
+      if (!formData?.defenseDate) {
+        newErrors.defenseDate = 'La date de soutenance est requise';
+      }
+      if (!formData?.keywords || formData?.keywords?.length < 3) {
+        newErrors.keywords = 'Au moins 3 mots-clés sont requis';
+      }
+      if (!formData?.abstract || formData?.abstract?.length < 200) {
+        newErrors.abstract = 'Le résumé doit contenir au moins 200 caractères';
+      }
+    }
+
+    if (step === 2) {
+      if (!uploadedFile) {
+        newErrors.file = 'Le fichier PDF est requis';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors)?.length === 0;
+  };
+
+  const handleNextStep = () => {
+    if (validateStep(currentStep)) {
+      if (currentStep < steps?.length) {
+        setCurrentStep(currentStep + 1);
+        showStatusBanner(`Étape ${currentStep} complétée`, 'success');
+      }
+    } else {
+      showStatusBanner('Veuillez corriger les erreurs avant de continuer', 'error');
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleFormChange = (newFormData) => {
+    setFormData(newFormData);
+    // Clear related errors
+    const newErrors = { ...errors };
+    Object.keys(newFormData)?.forEach(key => {
+      if (newErrors?.[key]) {
+        delete newErrors?.[key];
+      }
+    });
+    setErrors(newErrors);
+  };
+
+  const handleFileSelect = (file) => {
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    // Simulate file upload progress
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsUploading(false);
+          setUploadedFile(file);
+          showStatusBanner('Fichier téléchargé avec succès', 'success');
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 200);
+  };
+
+  const handleFileRemove = () => {
+    setUploadedFile(null);
+    setUploadProgress(0);
+    showStatusBanner('Fichier supprimé', 'info');
+  };
+
+  const handleChecklistChange = (checklist) => {
+    setChecklistData(checklist);
+  };
+
+  const handlePreview = () => {
+    if (validateStep(1) && uploadedFile) {
+      // In a real app, this would open a preview modal or navigate to preview page
+      showStatusBanner('Aperçu du rapport généré', 'info');
+    } else {
+      showStatusBanner('Complétez les informations requises pour l\'aperçu', 'warning');
+    }
+  };
+
+  const handleSaveDraft = () => {
+    showStatusBanner('Brouillon sauvegardé', 'success');
+  };
+
+  const handleSubmit = async () => {
+    // Validate all steps
+    const step1Valid = validateStep(1);
+    const step2Valid = validateStep(2);
+    
+    if (!step1Valid || !step2Valid) {
+      showStatusBanner('Veuillez corriger toutes les erreurs avant la soumission', 'error');
+      return;
+    }
+
+    // Check if all required checklist items are completed
+    const requiredItems = Object.values(checklistData)?.filter(Boolean)?.length;
+    if (requiredItems < 16) { // Total required items
+      showStatusBanner('Veuillez compléter tous les éléments de la liste de vérification', 'warning');
+      setCurrentStep(3);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Simulate API submission
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Clear draft data
+      localStorage.removeItem('esprim_draft_data');
+      localStorage.removeItem('esprim_draft_timestamp');
+      
+      showStatusBanner('Rapport soumis avec succès!', 'success');
+      
+      // Navigate to dashboard after successful submission
+      setTimeout(() => {
+        navigate('/student-dashboard');
+      }, 2000);
+      
+    } catch (error) {
+      showStatusBanner('Erreur lors de la soumission. Veuillez réessayer.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <ReportMetadataForm
+            formData={formData}
+            onFormChange={handleFormChange}
+            errors={errors}
+          />
+        );
+      case 2:
+        return (
+          <FileUploadSection
+            onFileSelect={handleFileSelect}
+            uploadedFile={uploadedFile}
+            onFileRemove={handleFileRemove}
+            uploadProgress={uploadProgress}
+            isUploading={isUploading}
+          />
+        );
+      case 3:
+        return (
+          <SubmissionChecklist
+            formData={formData}
+            uploadedFile={uploadedFile}
+            onChecklistChange={handleChecklistChange}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const isStepCompleted = (stepId) => {
+    switch (stepId) {
+      case 1:
+        return validateStep(1);
+      case 2:
+        return uploadedFile !== null;
+      case 3:
+        return Object.values(checklistData)?.filter(Boolean)?.length >= 16;
+      default:
+        return false;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <NavigationBreadcrumbs />
+        
+        {showBanner && (
+          <StatusIndicatorBanner
+            type={bannerType}
+            message={bannerMessage}
+            isVisible={showBanner}
+            onDismiss={() => setShowBanner(false)}
+            autoHide={true}
+            autoHideDelay={5000}
+            showProgress={true}
+            actionLabel=""
+            onAction={() => {}}
+          />
+        )}
+
+        <div className="max-w-6xl mx-auto">
+          {/* Page Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-heading font-bold text-foreground mb-2">
+              Soumission de Rapport PFE
+            </h1>
+            <p className="text-muted-foreground">
+              Soumettez votre rapport de Projet de Fin d'Études avec les métadonnées complètes
+            </p>
+          </div>
+
+          {/* Progress Steps */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              {steps?.map((step, index) => (
+                <div key={step?.id} className="flex items-center">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center academic-transition ${
+                      currentStep === step?.id
+                        ? 'bg-primary text-primary-foreground'
+                        : isStepCompleted(step?.id)
+                        ? 'bg-success text-success-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {isStepCompleted(step?.id) ? (
+                        <Icon name="Check" size={20} />
+                      ) : (
+                        <Icon name={step?.icon} size={20} />
+                      )}
+                    </div>
+                    <div className="hidden sm:block">
+                      <p className={`text-sm font-medium ${
+                        currentStep === step?.id ? 'text-primary' : 'text-foreground'
+                      }`}>
+                        {step?.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {step?.description}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {index < steps?.length - 1 && (
+                    <div className={`w-16 h-0.5 mx-4 ${
+                      isStepCompleted(step?.id) ? 'bg-success' : 'bg-muted'
+                    }`} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2">
+              <div className="bg-card border border-border rounded-academic academic-shadow-sm">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-heading font-semibold text-foreground">
+                      {steps?.[currentStep - 1]?.title}
+                    </h2>
+                    <span className="text-sm text-muted-foreground">
+                      Étape {currentStep} sur {steps?.length}
+                    </span>
+                  </div>
+
+                  {getStepContent()}
+
+                  {/* Navigation Buttons */}
+                  <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
+                    <div className="flex space-x-3">
+                      <Button
+                        variant="outline"
+                        onClick={handlePreviousStep}
+                        disabled={currentStep === 1}
+                        iconName="ChevronLeft"
+                        iconPosition="left"
+                      >
+                        Précédent
+                      </Button>
+                      
+                      {currentStep < steps?.length ? (
+                        <Button
+                          variant="default"
+                          onClick={handleNextStep}
+                          iconName="ChevronRight"
+                          iconPosition="right"
+                        >
+                          Suivant
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="default"
+                          onClick={handleSubmit}
+                          loading={isSubmitting}
+                          iconName="Send"
+                          iconPosition="left"
+                          disabled={Object.values(checklistData)?.filter(Boolean)?.length < 16}
+                        >
+                          {isSubmitting ? 'Soumission...' : 'Soumettre le Rapport'}
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="ghost"
+                        onClick={handlePreview}
+                        iconName="Eye"
+                        iconPosition="left"
+                        size="sm"
+                      >
+                        Aperçu
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        onClick={handleSaveDraft}
+                        iconName="Save"
+                        iconPosition="left"
+                        size="sm"
+                      >
+                        Sauvegarder
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Auto-save Status */}
+              <div className="bg-card border border-border rounded-academic academic-shadow-sm p-4">
+                <DraftAutoSave
+                  formData={formData}
+                  uploadedFile={uploadedFile}
+                  onManualSave={handleSaveDraft}
+                />
+              </div>
+
+              {/* Help & Guidelines */}
+              <div className="bg-card border border-border rounded-academic academic-shadow-sm p-4">
+                <h3 className="text-sm font-heading font-medium text-foreground mb-3 flex items-center space-x-2">
+                  <Icon name="HelpCircle" size={16} className="text-primary" />
+                  <span>Aide & Conseils</span>
+                </h3>
+                
+                <div className="space-y-3 text-xs text-muted-foreground">
+                  <div className="flex items-start space-x-2">
+                    <Icon name="FileText" size={12} className="mt-0.5 text-primary" />
+                    <p>Utilisez un titre descriptif et précis pour votre rapport</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <Icon name="Tags" size={12} className="mt-0.5 text-primary" />
+                    <p>Choisissez des mots-clés pertinents pour faciliter la recherche</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <Icon name="Upload" size={12} className="mt-0.5 text-primary" />
+                    <p>Assurez-vous que votre PDF respecte la charte graphique ESPRIM</p>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <Icon name="Shield" size={12} className="mt-0.5 text-primary" />
+                    <p>Vérifiez l'originalité de votre contenu avant soumission</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    fullWidth
+                    iconName="ExternalLink"
+                    iconPosition="right"
+                  >
+                    Guide de soumission
+                  </Button>
+                </div>
+              </div>
+
+              {/* Contact Support */}
+              <div className="bg-accent/10 border border-accent/20 rounded-academic p-4">
+                <h3 className="text-sm font-medium text-accent mb-2 flex items-center space-x-2">
+                  <Icon name="MessageCircle" size={16} />
+                  <span>Besoin d'aide ?</span>
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Contactez le support technique pour toute assistance
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  fullWidth
+                  iconName="Mail"
+                  iconPosition="left"
+                >
+                  support@esprim.tn
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <QuickActionPanel userRole="student" />
+    </div>
+  );
+};
+
+export default ReportSubmissionForm;
