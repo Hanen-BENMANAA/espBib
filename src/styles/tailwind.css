@@ -12,7 +12,7 @@
     --color-foreground: #1F2937; /* gray-800 */
     --color-border: rgba(148, 163, 184, 0.2); /* slate-400 with opacity */
     --color-input: #FFFFFF; /* white */
-    --color-ring: #1E3A8A; /* blue-800 */
+    --color-ring: rgb(201, 12, 15); /* blue-800 */
     
     /* Card Colors */
     --color-card: #FFFFFF; /* white */
@@ -27,7 +27,7 @@
     --color-muted-foreground: #6B7280; /* gray-500 */
     
     /* Primary Colors */
-    --color-primary: #1E3A8A; /* blue-800 */
+    --color-primary: rgb(201, 12, 15); /* blue-800 */
     --color-primary-foreground: #FFFFFF; /* white */
     
     /* Secondary Colors */
@@ -39,7 +39,7 @@
     --color-destructive-foreground: #FFFFFF; /* white */
     
     /* Accent Colors */
-    --color-accent: #F59E0B; /* amber-500 */
+    --color-accent: rgba(37, 150, 190, 1); /* custom blue */
     --color-accent-foreground: #1F2937; /* gray-800 */
     
     /* Success Colors */
