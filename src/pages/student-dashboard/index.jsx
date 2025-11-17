@@ -161,14 +161,13 @@ const StudentDashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleNewSubmission = () => {
-    navigate('/report-submission-form');
-  };
+const handleNewSubmission = () => {
+  navigate('/student/submit-report'); // Use the correct route
+};
 
-  const handleContinueDraft = () => {
-    navigate('/report-submission-form?draft=true');
-  };
-
+const handleContinueDraft = () => {
+  navigate('/student/submit-report?draft=true'); // Use the correct route
+};
   const handleViewDetails = (submissionId) => {
     console.log('View details for submission:', submissionId);
   };

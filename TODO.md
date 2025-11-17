@@ -1,44 +1,33 @@
-# TODO: Deploy Frontend Locally and Add Node.js Backend with PostgreSQL
+# PostgreSQL Setup for Admin Dashboard
 
-## 1. Deploy Frontend Locally
-- [x] Install `serve` package globally
-- [x] Serve the `dist` folder on a local port (e.g., 3000) - Running on http://localhost:3000
+## Current Status
+- [x] Analyzed existing database schema and backend configuration
+- [x] Identified authentication issues with PostgreSQL connection
+- [x] Found static data in ActivityChart component
 
-## 2. Set Up Backend Project
-- [x] Create `backend/` directory
-- [x] Initialize Node.js project with `npm init -y`
-- [x] Install dependencies: express, pg, cors, dotenv, bcryptjs (for auth), jsonwebtoken (for JWT)
+## Tasks to Complete
 
-## 3. Configure PostgreSQL Database
-- [x] Ensure PostgreSQL is installed and running locally
-- [x] Create database (e.g., `bib_esprim_db`)
-- [x] Define schema: tables for users, reports, consultations, etc.
-- [x] Create migration scripts or SQL files for schema
+### 1. Install and Configure PostgreSQL
+- [ ] Install PostgreSQL server on Windows
+- [ ] Create database user and set password
+- [ ] Create bib_esprim_db database
 
-## 4. Set Up Express Server
-- [x] Create `server.js` with basic Express setup
-- [x] Configure middleware: CORS, JSON parsing, dotenv
-- [x] Set up database connection using pg
+### 2. Database Setup
+- [ ] Execute database.sql schema to create tables
+- [ ] Insert sample data
+- [ ] Verify database structure
 
-## 5. Create API Routes
-- [x] Auth routes: login, register (if needed)
-- [x] Reports routes: POST /reports (submit), GET /reports (fetch)
-- [x] Catalog routes: GET /catalog (public library catalog)
-- [x] Dashboard routes: GET /dashboard/student, GET /dashboard/admin, etc.
+### 3. Backend Configuration
+- [ ] Update .env file with correct DATABASE_URL
+- [ ] Fix authentication issues in server.js
+- [ ] Test database connectivity
 
-## 6. Update Frontend to Use Backend APIs
-- [ ] Create API service layer (`src/services/api.js`)
-- [ ] Add environment configuration for API base URL
-- [ ] Update authentication to use real API calls
-- [ ] Update StudentDashboard to fetch real data
-- [ ] Update other components to use API calls
-- [ ] Add proper error handling and loading states
+### 4. Frontend Updates
+- [ ] Update ActivityChart.jsx to fetch data from API
+- [ ] Add loading states and error handling
+- [ ] Test admin dashboard with real data
 
-## 7. Test Full Stack Locally
-- [ ] Start backend server (e.g., on port 5000)
-- [ ] Ensure frontend can communicate with backend
-- [ ] Test key features: login, submit report, view catalog, dashboards
-
-## 8. Environment Configuration
-- [ ] Create `.env` file for backend with DB credentials
-- [ ] Ensure sensitive data is not hardcoded
+### 5. Testing
+- [ ] Verify backend API endpoints work
+- [ ] Test admin dashboard functionality
+- [ ] Check data visualization in charts

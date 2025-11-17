@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/ui/Header';
 import NavigationBreadcrumbs from '../../components/ui/NavigationBreadcrumbs';
@@ -68,8 +68,7 @@ const ReportSubmissionForm = () => {
     if (savedDraft) {
       try {
         const draftData = JSON.parse(savedDraft);
-        setFormData(draftData?.formData || {});
-        // Note: File data would need to be handled differently in a real app
+        setFormData(draftData.formData || {});
         showStatusBanner('Brouillon chargé avec succès', 'success');
       } catch (error) {
         console.error('Failed to load draft:', error);
@@ -77,68 +76,115 @@ const ReportSubmissionForm = () => {
     }
   }, []);
 
-  const showStatusBanner = (message, type = 'info') => {
+  const showStatusBanner = useCallback((message, type = 'info') => {
     setBannerMessage(message);
     setBannerType(type);
     setShowBanner(true);
-  };
+  }, []);
 
-  const validateStep = (step) => {
-    const newErrors = {};
+  // ✅ CORRECTION: Utiliser useMemo pour éviter les recalculs inutiles
+  const validateStep = useMemo(() => {
+    return (step) => {
+      const newErrors = {};
 
-    if (step === 1) {
-      if (!formData?.title || formData?.title?.length < 10) {
-        newErrors.title = 'Le titre doit contenir au moins 10 caractères';
+      if (step === 1) {
+        if (!formData.title || formData.title.length < 10) {
+          newErrors.title = 'Le titre doit contenir au moins 10 caractères';
+        }
+        if (!formData.authorFirstName) {
+          newErrors.authorFirstName = 'Le prénom est requis';
+        }
+        if (!formData.authorLastName) {
+          newErrors.authorLastName = 'Le nom est requis';
+        }
+        if (!formData.studentNumber) {
+          newErrors.studentNumber = 'Le numéro d\'étudiant est requis';
+        }
+        if (!formData.email || !formData.email.includes('@esprim.tn')) {
+          newErrors.email = 'Email institutionnel @esprim.tn requis';
+        }
+        if (!formData.specialty) {
+          newErrors.specialty = 'La spécialité est requise';
+        }
+        if (!formData.academicYear) {
+          newErrors.academicYear = 'L\'année académique est requise';
+        }
+        if (!formData.supervisor) {
+          newErrors.supervisor = 'L\'encadrant principal est requis';
+        }
+        if (!formData.defenseDate) {
+          newErrors.defenseDate = 'La date de soutenance est requise';
+        }
+        if (!formData.keywords || formData.keywords.length < 3) {
+          newErrors.keywords = 'Au moins 3 mots-clés sont requis';
+        }
+        if (!formData.abstract || formData.abstract.length < 200) {
+          newErrors.abstract = 'Le résumé doit contenir au moins 200 caractères';
+        }
       }
-      if (!formData?.authorFirstName) {
-        newErrors.authorFirstName = 'Le prénom est requis';
-      }
-      if (!formData?.authorLastName) {
-        newErrors.authorLastName = 'Le nom est requis';
-      }
-      if (!formData?.studentNumber) {
-        newErrors.studentNumber = 'Le numéro d\'étudiant est requis';
-      }
-      if (!formData?.email || !formData?.email?.includes('@esprim.tn')) {
-        newErrors.email = 'Email institutionnel @esprim.tn requis';
-      }
-      if (!formData?.specialty) {
-        newErrors.specialty = 'La spécialité est requise';
-      }
-      if (!formData?.academicYear) {
-        newErrors.academicYear = 'L\'année académique est requise';
-      }
-      if (!formData?.supervisor) {
-        newErrors.supervisor = 'L\'encadrant principal est requis';
-      }
-      if (!formData?.defenseDate) {
-        newErrors.defenseDate = 'La date de soutenance est requise';
-      }
-      if (!formData?.keywords || formData?.keywords?.length < 3) {
-        newErrors.keywords = 'Au moins 3 mots-clés sont requis';
-      }
-      if (!formData?.abstract || formData?.abstract?.length < 200) {
-        newErrors.abstract = 'Le résumé doit contenir au moins 200 caractères';
-      }
-    }
 
-    if (step === 2) {
-      if (!uploadedFile) {
-        newErrors.file = 'Le fichier PDF est requis';
+      if (step === 2) {
+        if (!uploadedFile) {
+          newErrors.file = 'Le fichier PDF est requis';
+        }
       }
-    }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors)?.length === 0;
-  };
+      return Object.keys(newErrors).length === 0;
+    };
+  }, [formData, uploadedFile]);
 
   const handleNextStep = () => {
-    if (validateStep(currentStep)) {
-      if (currentStep < steps?.length) {
+    const isValid = validateStep(currentStep);
+    
+    if (isValid) {
+      if (currentStep < steps.length) {
         setCurrentStep(currentStep + 1);
         showStatusBanner(`Étape ${currentStep} complétée`, 'success');
       }
     } else {
+      // Calculer les erreurs pour les afficher
+      const newErrors = {};
+      if (currentStep === 1) {
+        if (!formData.title || formData.title.length < 10) {
+          newErrors.title = 'Le titre doit contenir au moins 10 caractères';
+        }
+        if (!formData.authorFirstName) {
+          newErrors.authorFirstName = 'Le prénom est requis';
+        }
+        if (!formData.authorLastName) {
+          newErrors.authorLastName = 'Le nom est requis';
+        }
+        if (!formData.studentNumber) {
+          newErrors.studentNumber = 'Le numéro d\'étudiant est requis';
+        }
+        if (!formData.email || !formData.email.includes('@esprim.tn')) {
+          newErrors.email = 'Email institutionnel @esprim.tn requis';
+        }
+        if (!formData.specialty) {
+          newErrors.specialty = 'La spécialité est requise';
+        }
+        if (!formData.academicYear) {
+          newErrors.academicYear = 'L\'année académique est requise';
+        }
+        if (!formData.supervisor) {
+          newErrors.supervisor = 'L\'encadrant principal est requis';
+        }
+        if (!formData.defenseDate) {
+          newErrors.defenseDate = 'La date de soutenance est requise';
+        }
+        if (!formData.keywords || formData.keywords.length < 3) {
+          newErrors.keywords = 'Au moins 3 mots-clés sont requis';
+        }
+        if (!formData.abstract || formData.abstract.length < 200) {
+          newErrors.abstract = 'Le résumé doit contenir au moins 200 caractères';
+        }
+      }
+      if (currentStep === 2) {
+        if (!uploadedFile) {
+          newErrors.file = 'Le fichier PDF est requis';
+        }
+      }
+      setErrors(newErrors);
       showStatusBanner('Veuillez corriger les erreurs avant de continuer', 'error');
     }
   };
@@ -151,21 +197,12 @@ const ReportSubmissionForm = () => {
 
   const handleFormChange = (newFormData) => {
     setFormData(newFormData);
-    // Clear related errors
-    const newErrors = { ...errors };
-    Object.keys(newFormData)?.forEach(key => {
-      if (newErrors?.[key]) {
-        delete newErrors?.[key];
-      }
-    });
-    setErrors(newErrors);
   };
 
   const handleFileSelect = (file) => {
     setIsUploading(true);
     setUploadProgress(0);
 
-    // Simulate file upload progress
     const interval = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 100) {
@@ -187,12 +224,27 @@ const ReportSubmissionForm = () => {
   };
 
   const handleChecklistChange = (checklist) => {
+    console.log('[Parent] Checklist updated:', Object.values(checklist).filter(Boolean).length, '/', Object.keys(checklist).length);
     setChecklistData(checklist);
   };
 
+  // Debug: Afficher l'état de la checklist
+  useEffect(() => {
+    const checkedCount = Object.values(checklistData).filter(Boolean).length;
+    const totalCount = 15;
+    const isButtonDisabled = checkedCount < 15;
+    
+    console.log('[DEBUG] Checklist state:', {
+      checkedCount,
+      totalCount,
+      isButtonDisabled,
+      checklistData
+    });
+  }, [checklistData]);
+
   const handlePreview = () => {
-    if (validateStep(1) && uploadedFile) {
-      // In a real app, this would open a preview modal or navigate to preview page
+    const step1Valid = validateStep(1);
+    if (step1Valid && uploadedFile) {
       showStatusBanner('Aperçu du rapport généré', 'info');
     } else {
       showStatusBanner('Complétez les informations requises pour l\'aperçu', 'warning');
@@ -204,7 +256,6 @@ const ReportSubmissionForm = () => {
   };
 
   const handleSubmit = async () => {
-    // Validate all steps
     const step1Valid = validateStep(1);
     const step2Valid = validateStep(2);
     
@@ -213,9 +264,8 @@ const ReportSubmissionForm = () => {
       return;
     }
 
-    // Check if all required checklist items are completed
-    const requiredItems = Object.values(checklistData)?.filter(Boolean)?.length;
-    if (requiredItems < 16) { // Total required items
+    const requiredItems = Object.values(checklistData).filter(Boolean).length;
+    if (requiredItems < 15) {
       showStatusBanner('Veuillez compléter tous les éléments de la liste de vérification', 'warning');
       setCurrentStep(3);
       return;
@@ -224,18 +274,15 @@ const ReportSubmissionForm = () => {
     setIsSubmitting(true);
 
     try {
-      // Simulate API submission
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // Clear draft data
       localStorage.removeItem('esprim_draft_data');
       localStorage.removeItem('esprim_draft_timestamp');
       
       showStatusBanner('Rapport soumis avec succès!', 'success');
       
-      // Navigate to dashboard after successful submission
       setTimeout(() => {
-        navigate('/student-dashboard');
+        navigate('/student/dashboard');
       }, 2000);
       
     } catch (error) {
@@ -278,14 +325,25 @@ const ReportSubmissionForm = () => {
     }
   };
 
+  // ✅ CORRECTION: Ne pas appeler validateStep dans le rendu
   const isStepCompleted = (stepId) => {
     switch (stepId) {
       case 1:
-        return validateStep(1);
+        return formData.title?.length >= 10 &&
+               formData.authorFirstName &&
+               formData.authorLastName &&
+               formData.studentNumber &&
+               formData.email?.includes('@esprim.tn') &&
+               formData.specialty &&
+               formData.academicYear &&
+               formData.supervisor &&
+               formData.defenseDate &&
+               formData.keywords?.length >= 3 &&
+               formData.abstract?.length >= 200;
       case 2:
         return uploadedFile !== null;
       case 3:
-        return Object.values(checklistData)?.filter(Boolean)?.length >= 16;
+        return Object.values(checklistData).filter(Boolean).length >= 15;
       default:
         return false;
     }
@@ -312,7 +370,6 @@ const ReportSubmissionForm = () => {
         )}
 
         <div className="max-w-6xl mx-auto">
-          {/* Page Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-heading font-bold text-foreground mb-2">
               Soumission de Rapport PFE
@@ -325,37 +382,37 @@ const ReportSubmissionForm = () => {
           {/* Progress Steps */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
-              {steps?.map((step, index) => (
-                <div key={step?.id} className="flex items-center">
+              {steps.map((step, index) => (
+                <div key={step.id} className="flex items-center">
                   <div className="flex items-center space-x-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center academic-transition ${
-                      currentStep === step?.id
+                      currentStep === step.id
                         ? 'bg-primary text-primary-foreground'
-                        : isStepCompleted(step?.id)
+                        : isStepCompleted(step.id)
                         ? 'bg-success text-success-foreground'
                         : 'bg-muted text-muted-foreground'
                     }`}>
-                      {isStepCompleted(step?.id) ? (
+                      {isStepCompleted(step.id) ? (
                         <Icon name="Check" size={20} />
                       ) : (
-                        <Icon name={step?.icon} size={20} />
+                        <Icon name={step.icon} size={20} />
                       )}
                     </div>
                     <div className="hidden sm:block">
                       <p className={`text-sm font-medium ${
-                        currentStep === step?.id ? 'text-primary' : 'text-foreground'
+                        currentStep === step.id ? 'text-primary' : 'text-foreground'
                       }`}>
-                        {step?.title}
+                        {step.title}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {step?.description}
+                        {step.description}
                       </p>
                     </div>
                   </div>
                   
-                  {index < steps?.length - 1 && (
+                  {index < steps.length - 1 && (
                     <div className={`w-16 h-0.5 mx-4 ${
-                      isStepCompleted(step?.id) ? 'bg-success' : 'bg-muted'
+                      isStepCompleted(step.id) ? 'bg-success' : 'bg-muted'
                     }`} />
                   )}
                 </div>
@@ -364,22 +421,20 @@ const ReportSubmissionForm = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
             <div className="lg:col-span-2">
               <div className="bg-card border border-border rounded-academic academic-shadow-sm">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-heading font-semibold text-foreground">
-                      {steps?.[currentStep - 1]?.title}
+                      {steps[currentStep - 1]?.title}
                     </h2>
                     <span className="text-sm text-muted-foreground">
-                      Étape {currentStep} sur {steps?.length}
+                      Étape {currentStep} sur {steps.length}
                     </span>
                   </div>
 
                   {getStepContent()}
 
-                  {/* Navigation Buttons */}
                   <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
                     <div className="flex space-x-3">
                       <Button
@@ -392,7 +447,7 @@ const ReportSubmissionForm = () => {
                         Précédent
                       </Button>
                       
-                      {currentStep < steps?.length ? (
+                      {currentStep < steps.length ? (
                         <Button
                           variant="default"
                           onClick={handleNextStep}
@@ -408,7 +463,7 @@ const ReportSubmissionForm = () => {
                           loading={isSubmitting}
                           iconName="Send"
                           iconPosition="left"
-                          disabled={Object.values(checklistData)?.filter(Boolean)?.length < 16}
+                          disabled={Object.values(checklistData).filter(Boolean).length < 15}
                         >
                           {isSubmitting ? 'Soumission...' : 'Soumettre le Rapport'}
                         </Button>
@@ -441,9 +496,7 @@ const ReportSubmissionForm = () => {
               </div>
             </div>
 
-            {/* Sidebar */}
             <div className="space-y-6">
-              {/* Auto-save Status */}
               <div className="bg-card border border-border rounded-academic academic-shadow-sm p-4">
                 <DraftAutoSave
                   formData={formData}
@@ -452,7 +505,6 @@ const ReportSubmissionForm = () => {
                 />
               </div>
 
-              {/* Help & Guidelines */}
               <div className="bg-card border border-border rounded-academic academic-shadow-sm p-4">
                 <h3 className="text-sm font-heading font-medium text-foreground mb-3 flex items-center space-x-2">
                   <Icon name="HelpCircle" size={16} className="text-primary" />
@@ -491,7 +543,6 @@ const ReportSubmissionForm = () => {
                 </div>
               </div>
 
-              {/* Contact Support */}
               <div className="bg-accent/10 border border-accent/20 rounded-academic p-4">
                 <h3 className="text-sm font-medium text-accent mb-2 flex items-center space-x-2">
                   <Icon name="MessageCircle" size={16} />

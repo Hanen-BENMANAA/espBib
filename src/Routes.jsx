@@ -1,26 +1,17 @@
-// src/Routes.jsx - VERSION FINALE FONCTIONNELLE
+// Routes.jsx - VERSION CORRIGÉE
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { getUser } from "./lib/auth";
 
-// === IMPORTS DIRECTS DES PAGES ===
+// IMPORT ONLY PAGE COMPONENTS
 import LoginAuthentication from "./pages/login-authentication";
 import StudentDashboard from "./pages/student-dashboard";
 import ReportSubmissionForm from "./pages/report-submission-form";
 import SecurePDFReader from "./pages/secure-pdf-reader";
 import TeacherValidationDashboard from "./pages/teacher-validation-dashboard";
 import AdministrativeDashboard from "./pages/administrative-dashboard";
-import ValidationStatsPanel from "./pages/teacher-validation-dashboard";
-import ConsultationHistorySection from "./pages/student-dashboard";
-import ActivityChart from "./pages/administrative-dashboard";
-import UserManagementPanel from "./pages/administrative-dashboard";
-import SystemSettingsPanel from "./pages/administrative-dashboard";
-import ReportOverviewSection from "./pages/teacher-validation-dashboard";
-import ManagementPanel from "./pages/administrative-dashboard";
-import MetricsCard from "./pages/administrative-dashboard";
-import QuickStats from "./pages/administrative-dashboard";
 
-// === PAGE 404 ===
+// PAGE 404
 const NotFound = () => (
   <div style={{ 
     display: 'flex', 
@@ -52,31 +43,47 @@ const NotFound = () => (
   </div>
 );
 
-// === PROTECTION PAR RÔLE ===
+// ROLE PROTECTION AMÉLIORÉE
 const ProtectedRoute = ({ children, allowedRole }) => {
   const user = getUser();
   
+  // Debugging - À retirer en production
+  console.log("ProtectedRoute - User:", user);
+  console.log("ProtectedRoute - Required role:", allowedRole);
+  
   if (!user) {
+    console.log("No user found, redirecting to login");
     return <Navigate to="/login" replace />;
   }
   
   if (user.role !== allowedRole) {
-    return <Navigate to="/login" replace />;
+    console.log(`User role ${user.role} doesn't match required role ${allowedRole}`);
+    // Rediriger vers le dashboard approprié selon le rôle
+    switch(user.role) {
+      case 'student':
+        return <Navigate to="/student/dashboard" replace />;
+      case 'teacher':
+        return <Navigate to="/teacher/dashboard" replace />;
+      case 'admin':
+        return <Navigate to="/admin/dashboard" replace />;
+      default:
+        return <Navigate to="/login" replace />;
+    }
   }
   
   return children;
 };
 
-// === COMPOSANT PRINCIPAL ===
+// MAIN COMPONENT
 export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* PUBLIC */}
+        {/* PUBLIC ROUTES */}
         <Route path="/" element={<LoginAuthentication />} />
         <Route path="/login" element={<LoginAuthentication />} />
 
-        {/* ÉTUDIANT */}
+        {/* STUDENT ROUTES - TOUTES LES VARIANTES */}
         <Route 
           path="/student/dashboard" 
           element={
@@ -85,6 +92,8 @@ export default function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        
+        {/* Route principale pour la soumission */}
         <Route 
           path="/student/submit-report" 
           element={
@@ -93,6 +102,18 @@ export default function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        
+        {/* Route alternative (pour compatibilité) */}
+        <Route 
+          path="/report-submission-form" 
+          element={
+            <ProtectedRoute allowedRole="student">
+              <ReportSubmissionForm />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Routes de visualisation */}
         <Route 
           path="/student/view-report/:id" 
           element={
@@ -101,6 +122,7 @@ export default function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        
         <Route 
           path="/student/view-report" 
           element={
@@ -109,8 +131,17 @@ export default function AppRoutes() {
             </ProtectedRoute>
           } 
         />
+        
+        <Route 
+          path="/secure-pdf-reader" 
+          element={
+            <ProtectedRoute allowedRole="student">
+              <SecurePDFReader />
+            </ProtectedRoute>
+          } 
+        />
 
-        {/* ENSEIGNANT */}
+        {/* TEACHER ROUTES */}
         <Route 
           path="/teacher/dashboard" 
           element={
@@ -119,16 +150,8 @@ export default function AppRoutes() {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/teacher-validation-dashboard" 
-          element={
-            <ProtectedRoute allowedRole="teacher">
-              <TeacherValidationDashboard />
-            </ProtectedRoute>
-          } 
-        />
 
-        {/* ADMIN */}
+        {/* ADMIN ROUTES */}
         <Route 
           path="/admin/dashboard" 
           element={

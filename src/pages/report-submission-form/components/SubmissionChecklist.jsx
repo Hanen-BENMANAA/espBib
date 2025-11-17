@@ -129,22 +129,48 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
     }
   ];
 
+  // ✅ CORRECTION: Gérer les changements de checkbox et notifier le parent immédiatement
   const handleCheckboxChange = (itemId, checked) => {
-    const newCheckedItems = { ...checkedItems, [itemId]: checked };
-    setCheckedItems(newCheckedItems);
-    onChecklistChange(newCheckedItems);
+    setCheckedItems(prevItems => {
+      const newCheckedItems = { ...prevItems, [itemId]: checked };
+      // Notifier le parent immédiatement avec les nouvelles données
+      onChecklistChange(newCheckedItems);
+      return newCheckedItems;
+    });
   };
 
+  // ✅ CORRECTION: Recalculer le pourcentage à chaque changement de checkedItems
   useEffect(() => {
-    // Auto-check items based on form data
+    const totalItems = checklistItems.length;
+    const checkedCount = Object.values(checkedItems).filter(Boolean).length;
+    const percentage = Math.round((checkedCount / totalItems) * 100);
+    setCompletionPercentage(percentage);
+    
+    console.log(`[Checklist] ${checkedCount}/${totalItems} items checked (${percentage}%)`);
+  }, [checkedItems]);
+
+  // ✅ CORRECTION: Auto-check basé sur formData et uploadedFile
+  useEffect(() => {
     const newCheckedItems = { ...checkedItems };
     let hasChanges = false;
 
-    checklistItems?.forEach(item => {
-      const shouldBeChecked = item?.autoCheck();
-      if (newCheckedItems?.[item?.id] !== shouldBeChecked && shouldBeChecked) {
-        newCheckedItems[item.id] = shouldBeChecked;
+    checklistItems.forEach(item => {
+      const shouldBeChecked = item.autoCheck();
+      const currentlyChecked = newCheckedItems[item.id];
+      
+      // Auto-cocher si la condition est remplie et pas déjà coché
+      if (shouldBeChecked && !currentlyChecked) {
+        newCheckedItems[item.id] = true;
         hasChanges = true;
+      }
+      // Décocher si la condition n'est plus remplie (seulement pour les items auto)
+      else if (!shouldBeChecked && currentlyChecked && item.autoCheck() !== false) {
+        // Ne décocher que si c'était un auto-check (pas un check manuel)
+        const isAutoCheckable = item.autoCheck !== (() => false);
+        if (isAutoCheckable) {
+          newCheckedItems[item.id] = false;
+          hasChanges = true;
+        }
       }
     });
 
@@ -152,19 +178,13 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
       setCheckedItems(newCheckedItems);
       onChecklistChange(newCheckedItems);
     }
-
-    // Calculate completion percentage
-    const totalItems = checklistItems?.length;
-    const checkedCount = Object.values(newCheckedItems)?.filter(Boolean)?.length;
-    const percentage = Math.round((checkedCount / totalItems) * 100);
-    setCompletionPercentage(percentage);
   }, [formData, uploadedFile]);
 
-  const groupedItems = checklistItems?.reduce((groups, item) => {
-    if (!groups?.[item?.category]) {
+  const groupedItems = checklistItems.reduce((groups, item) => {
+    if (!groups[item.category]) {
       groups[item.category] = [];
     }
-    groups?.[item?.category]?.push(item);
+    groups[item.category].push(item);
     return groups;
   }, {});
 
@@ -179,6 +199,11 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
     if (completionPercentage >= 75) return 'bg-warning';
     return 'bg-primary';
   };
+
+  // Calculer le nombre d'éléments restants
+  const totalItems = checklistItems.length;
+  const checkedCount = Object.values(checkedItems).filter(Boolean).length;
+  const remainingItems = totalItems - checkedCount;
 
   return (
     <div className="space-y-6">
@@ -197,6 +222,7 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
           />
         </div>
       </div>
+
       {/* Progress Bar */}
       <div className="space-y-2">
         <div className="w-full bg-muted rounded-full h-2">
@@ -206,12 +232,13 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
           />
         </div>
         <p className="text-xs text-muted-foreground">
-          {Object.values(checkedItems)?.filter(Boolean)?.length} sur {checklistItems?.length} éléments complétés
+          {checkedCount} sur {totalItems} éléments complétés
         </p>
       </div>
+
       {/* Checklist Items by Category */}
       <div className="space-y-6">
-        {Object.entries(groupedItems)?.map(([category, items]) => (
+        {Object.entries(groupedItems).map(([category, items]) => (
           <div key={category} className="space-y-3">
             <h4 className="text-sm font-medium text-foreground flex items-center space-x-2">
               <Icon 
@@ -224,46 +251,53 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
               />
               <span>{category}</span>
               <span className="text-xs text-muted-foreground">
-                ({items?.filter(item => checkedItems?.[item?.id])?.length}/{items?.length})
+                ({items.filter(item => checkedItems[item.id]).length}/{items.length})
               </span>
             </h4>
             
             <div className="space-y-2">
-              {items?.map(item => (
-                <div key={item?.id} className="flex items-start space-x-3 p-3 bg-card border border-border rounded-academic">
-                  <Checkbox
-                    checked={checkedItems?.[item?.id] || false}
-                    onChange={(e) => handleCheckboxChange(item?.id, e?.target?.checked)}
-                    disabled={item?.autoCheck() && checkedItems?.[item?.id]}
-                    className="mt-0.5"
-                  />
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm font-medium text-foreground">
-                        {item?.label}
+              {items.map(item => {
+                const isChecked = checkedItems[item.id] || false;
+                const isAutoChecked = item.autoCheck();
+                
+                return (
+                  <div key={item.id} className="flex items-start space-x-3 p-3 bg-card border border-border rounded-academic">
+                    <Checkbox
+                      checked={isChecked}
+                      onChange={(e) => handleCheckboxChange(item.id, e.target.checked)}
+                      disabled={isAutoChecked && isChecked}
+                      className="mt-0.5"
+                    />
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <p className="text-sm font-medium text-foreground">
+                          {item.label}
+                        </p>
+                        {item.required && (
+                          <span className="text-xs text-destructive">*</span>
+                        )}
+                        {isAutoChecked && isChecked && (
+                          <Icon name="Zap" size={12} className="text-accent" title="Vérifié automatiquement" />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {item.description}
                       </p>
-                      {item?.required && (
-                        <span className="text-xs text-destructive">*</span>
-                      )}
-                      {item?.autoCheck() && checkedItems?.[item?.id] && (
-                        <Icon name="Zap" size={12} className="text-accent" title="Vérifié automatiquement" />
-                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {item?.description}
-                    </p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))}
       </div>
+
       {/* Submission Readiness */}
       <div className={`p-4 rounded-academic border ${
         completionPercentage >= 100 
-          ? 'bg-success/10 border-success/20' :'bg-warning/10 border-warning/20'
+          ? 'bg-success/10 border-success/20' 
+          : 'bg-warning/10 border-warning/20'
       }`}>
         <div className="flex items-center space-x-3">
           <Icon 
@@ -276,12 +310,13 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
               completionPercentage >= 100 ? "text-success" : "text-warning"
             }`}>
               {completionPercentage >= 100 
-                ? "Prêt pour la soumission" :"Éléments manquants"}
+                ? "Prêt pour la soumission" 
+                : "Éléments manquants"}
             </p>
             <p className="text-xs text-muted-foreground">
               {completionPercentage >= 100 
                 ? "Tous les critères sont remplis. Vous pouvez soumettre votre rapport."
-                : `Complétez les ${checklistItems?.length - Object.values(checkedItems)?.filter(Boolean)?.length} éléments restants avant la soumission.`}
+                : `Complétez les ${remainingItems} élément${remainingItems > 1 ? 's' : ''} restant${remainingItems > 1 ? 's' : ''} avant la soumission.`}
             </p>
           </div>
         </div>
