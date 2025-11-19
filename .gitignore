@@ -4,6 +4,9 @@ node_modules/
 # Ignore build output
 dist/
 
+# Ignore uploads
+uploads/
+
 # Optional common ignores
 .env
 .DS_Store
