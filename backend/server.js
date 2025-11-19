@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
 const speakeasy = require('speakeasy');
 const qrcode = require('qrcode');
 const bcrypt = require('bcrypt');
@@ -10,32 +9,26 @@ const path = require('path');
 const fs = require('fs').promises;
 require('dotenv').config();
 
+const db = require('./db');
+
 const app = express();
-const port = process.env.PORT || 000;
+const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // Servir les fichiers uploadés
-app.use('/uploads', express.static('uploads'));
-
-// PostgreSQL connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-// Test database connection
-pool.on('connect', () => {
-  console.log('Connected to PostgreSQL database');
-});
+const uploadDir = process.env.UPLOAD_DIR || 'uploads';
+app.use('/uploads', express.static(uploadDir));
 
 // Configuration Multer pour l'upload de fichiers
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
-    const uploadDir = path.join(__dirname, 'uploads/reports');
-    await fs.mkdir(uploadDir, { recursive: true }).catch(console.error);
-    cb(null, uploadDir);
+    const uploadBaseDir = process.env.UPLOAD_DIR || 'uploads';
+    const uploadReportsDir = path.join(__dirname, uploadBaseDir, 'reports');
+    await fs.mkdir(uploadReportsDir, { recursive: true }).catch(console.error);
+    cb(null, uploadReportsDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -100,7 +93,7 @@ app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
 
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -108,8 +101,8 @@ app.post('/api/auth/login', async (req, res) => {
 
     const user = result.rows[0];
 
-    // Verify password (in production, use bcrypt.compare)
-    const isValidPassword = password === 'password123'; // Mock validation
+    // Verify password using bcrypt
+    const isValidPassword = await bcrypt.compare(password, user.password || '');
 
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -145,7 +138,7 @@ app.post('/api/auth/login', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error('Login error:', err.message);
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -161,7 +154,7 @@ app.post('/api/auth/2fa/setup', async (req, res) => {
 
     const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
 
-    await pool.query(
+    await db.query(
       'UPDATE users SET two_factor_secret = $1, two_factor_method = $2 WHERE id = $3',
       [secret.base32, method, userId]
     );
@@ -173,7 +166,7 @@ app.post('/api/auth/2fa/setup', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error('2FA setup error:', err.message);
     res.status(500).json({ error: 'Failed to setup 2FA' });
   }
 });
@@ -182,7 +175,7 @@ app.post('/api/auth/2fa/verify', async (req, res) => {
   const { userId, code, method } = req.body;
 
   try {
-    const result = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
+    const result = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -208,7 +201,7 @@ app.post('/api/auth/2fa/verify', async (req, res) => {
     }
 
     if (!user.two_factor_enabled) {
-      await pool.query(
+      await db.query(
         'UPDATE users SET two_factor_enabled = TRUE WHERE id = $1',
         [userId]
       );
@@ -229,7 +222,7 @@ app.post('/api/auth/2fa/verify', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error('2FA verification error:', err.message);
     res.status(500).json({ error: '2FA verification failed' });
   }
 });
@@ -238,7 +231,7 @@ app.post('/api/auth/2fa/send-sms', async (req, res) => {
   const { userId } = req.body;
 
   try {
-    const result = await pool.query('SELECT phone FROM users WHERE id = $1', [userId]);
+    const result = await db.query('SELECT phone FROM users WHERE id = $1', [userId]);
 
     if (result.rows.length === 0 || !result.rows[0].phone) {
       return res.status(400).json({ error: 'No phone number registered' });
@@ -249,7 +242,7 @@ app.post('/api/auth/2fa/send-sms', async (req, res) => {
     res.json({ message: 'SMS code sent successfully' });
 
   } catch (err) {
-    console.error(err);
+    console.error('Send SMS error:', err.message);
     res.status(500).json({ error: 'Failed to send SMS' });
   }
 });
@@ -260,7 +253,7 @@ app.post('/api/auth/2fa/send-sms', async (req, res) => {
 
 // SOUMETTRE UN NOUVEAU RAPPORT
 app.post('/api/reports/submit', authenticateToken, upload.single('file'), async (req, res) => {
-  const client = await pool.connect();
+  const client = await db.pool.connect();
   
   try {
     await client.query('BEGIN');
@@ -324,7 +317,7 @@ app.post('/api/reports/submit', authenticateToken, upload.single('file'), async 
     
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Erreur soumission:', error);
+    console.error('Report submission error:', error.message);
     
     if (req.file) {
       await fs.unlink(req.file.path).catch(console.error);
@@ -352,7 +345,7 @@ app.get('/api/reports/current-submission', authenticateToken, async (req, res) =
       LIMIT 1
     `;
     
-    const result = await pool.query(query, [req.user.id]);
+    const result = await db.query(query, [req.user.id]);
     
     if (result.rows.length === 0) {
       return res.json({ success: true, data: null });
@@ -374,7 +367,7 @@ app.get('/api/reports/current-submission', authenticateToken, async (req, res) =
     });
     
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Error fetching current submission:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -394,7 +387,7 @@ app.get('/api/reports/my-submissions', authenticateToken, async (req, res) => {
       ORDER BY submission_date DESC
     `;
     
-    const result = await pool.query(query, [req.user.id]);
+    const result = await db.query(query, [req.user.id]);
     
     res.json({
       success: true,
@@ -402,7 +395,7 @@ app.get('/api/reports/my-submissions', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Error fetching submissions:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -420,7 +413,7 @@ app.get('/api/reports/my-stats', authenticateToken, async (req, res) => {
       WHERE user_id = $1
     `;
     
-    const result = await pool.query(query, [req.user.id]);
+    const result = await db.query(query, [req.user.id]);
     
     res.json({
       success: true,
@@ -428,7 +421,7 @@ app.get('/api/reports/my-stats', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Error fetching stats:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -445,7 +438,7 @@ app.get('/api/reports/history', authenticateToken, async (req, res) => {
       ORDER BY submission_date DESC
     `;
     
-    const result = await pool.query(query, [req.user.id]);
+    const result = await db.query(query, [req.user.id]);
     
     res.json({
       success: true,
@@ -453,7 +446,7 @@ app.get('/api/reports/history', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Error fetching history:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -467,12 +460,12 @@ app.get('/api/reports/my-reports', authenticateToken, async (req, res) => {
       ORDER BY submission_date DESC
     `;
     
-    const result = await pool.query(query, [req.user.id]);
+    const result = await db.query(query, [req.user.id]);
     
     res.json({ success: true, reports: result.rows });
     
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Error fetching reports:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -509,7 +502,7 @@ app.get('/api/reports/assigned-to-me', authenticateToken, async (req, res) => {
       ORDER BY r.submission_date DESC
     `;
     
-    const result = await pool.query(query, [`%${teacherName}%`]);
+    const result = await db.query(query, [`%${teacherName}%`]);
     
     res.json({
       success: true,
@@ -517,7 +510,7 @@ app.get('/api/reports/assigned-to-me', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Error fetching assigned reports:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -547,7 +540,7 @@ app.get('/api/reports/pending-validation', authenticateToken, async (req, res) =
       ORDER BY r.submission_date ASC
     `;
     
-    const result = await pool.query(query, [`%${teacherName}%`]);
+    const result = await db.query(query, [`%${teacherName}%`]);
     
     res.json({
       success: true,
@@ -555,14 +548,14 @@ app.get('/api/reports/pending-validation', authenticateToken, async (req, res) =
     });
     
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Error fetching pending reports:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // VALIDER OU REJETER UN RAPPORT
 app.put('/api/reports/:id/validate', authenticateToken, async (req, res) => {
-  const client = await pool.connect();
+  const client = await db.pool.connect();
   
   try {
     if (req.user.role !== 'teacher') {
@@ -615,7 +608,7 @@ app.put('/api/reports/:id/validate', authenticateToken, async (req, res) => {
     
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Erreur validation:', error);
+    console.error('Report validation error:', error.message);
     res.status(500).json({
       success: false,
       error: error.message || 'Erreur lors de la validation'
@@ -647,7 +640,7 @@ app.get('/api/reports/teacher-stats', authenticateToken, async (req, res) => {
       WHERE supervisor ILIKE $1 OR co_supervisor ILIKE $1
     `;
     
-    const result = await pool.query(query, [`%${teacherName}%`]);
+    const result = await db.query(query, [`%${teacherName}%`]);
     
     res.json({
       success: true,
@@ -655,7 +648,7 @@ app.get('/api/reports/teacher-stats', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Error fetching teacher stats:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -691,7 +684,7 @@ app.get('/api/reports/:id', authenticateToken, async (req, res) => {
       params = [reportId];
     }
     
-    const result = await pool.query(query, params);
+    const result = await db.query(query, params);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -706,7 +699,7 @@ app.get('/api/reports/:id', authenticateToken, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error('Error fetching report:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -717,20 +710,20 @@ app.get('/api/reports/:id', authenticateToken, async (req, res) => {
 
 app.get('/api/catalog', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM catalog');
+    const result = await db.query('SELECT * FROM catalog');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error('Catalog error:', err.message);
     res.status(500).json({ error: 'Failed to fetch catalog' });
   }
 });
 
 app.get('/api/dashboard/stats', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM dashboard_stats');
+    const result = await db.query('SELECT * FROM dashboard_stats');
     res.json(result.rows);
   } catch (err) {
-    console.error(err);
+    console.error('Dashboard stats error:', err.message);
     res.status(500).json({ error: 'Failed to fetch dashboard stats' });
   }
 });
