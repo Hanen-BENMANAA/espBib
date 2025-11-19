@@ -74,27 +74,26 @@ BEFORE UPDATE ON reports
 FOR EACH ROW 
 EXECUTE FUNCTION update_updated_at_column();
 
--- Insérer des données de test
 INSERT INTO reports (
   user_id, title, author_first_name, author_last_name,
   student_number, email, specialty, academic_year,
   supervisor, defense_date, keywords, abstract,
   file_name, file_path, file_size, status
 ) VALUES (
-  3, -- student1
-  'Développement d''une application mobile de gestion des ressources humaines',
-  'Ahmed',
-  'Ben Salem',
-  'ESP2024001',
-  'student1@bibesprim.edu',
-  'Génie Informatique',
+  4,
+  'Analyse et implémentation d’un système de recommandation intelligent',
+  'Hanen',
+  'Benmanaa',
+  'ESP2024030',
+  'hanen.benmanaa@esprim.tn',
+  'Génie Logiciel',
   '2023-2024',
-  'Dr. Ahmed Ben Salem',
-  '2024-06-15',
-  ARRAY['mobile', 'ressources humaines', 'gestion'],
-  'Ce projet vise à développer une application mobile complète pour la gestion des ressources humaines dans les PME tunisiennes. L''application permet de gérer les congés, les présences, les salaires et les évaluations des employés.',
-  'rapport-pfe-2024.pdf',
-  '/uploads/reports/rapport-pfe-2024.pdf',
-  2500000,
-  'pending'
+  'Dr. Ahmed Jebali',
+  '2024-06-22',
+  ARRAY['Machine Learning', 'Recommandation', 'IA', 'Système intelligent'],
+  'Ce projet vise à concevoir un système de recommandation basé sur l’apprentissage automatique pour optimiser la personnalisation des contenus.',
+  'rapport-ESP2024030.pdf',
+  '/uploads/reports/rapport-ESP2024030.pdf',
+  2800000,
+  'validated'
 );

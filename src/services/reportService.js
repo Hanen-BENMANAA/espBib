@@ -1,8 +1,7 @@
 // src/services/reportService.js
 import { getToken } from '../lib/auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-
+const API_BASE_URL = 'http://localhost:000/api';
 // Helper pour les requêtes authentifiées
 const fetchWithAuth = async (url, options = {}) => {
   const token = getToken();

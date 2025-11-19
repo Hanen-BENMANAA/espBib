@@ -274,7 +274,7 @@ const ReportSubmissionForm = () => {
     setIsSubmitting(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 5000));
       
       localStorage.removeItem('esprim_draft_data');
       localStorage.removeItem('esprim_draft_timestamp');

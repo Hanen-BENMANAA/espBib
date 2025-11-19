@@ -1,33 +1,20 @@
-# PostgreSQL Setup for Admin Dashboard
+# TODO: Standardize Email Domain to esprim.tn
 
-## Current Status
-- [x] Analyzed existing database schema and backend configuration
-- [x] Identified authentication issues with PostgreSQL connection
-- [x] Found static data in ActivityChart component
-
-## Tasks to Complete
-
-### 1. Install and Configure PostgreSQL
-- [ ] Install PostgreSQL server on Windows
-- [ ] Create database user and set password
-- [ ] Create bib_esprim_db database
-
-### 2. Database Setup
-- [ ] Execute database.sql schema to create tables
-- [ ] Insert sample data
-- [ ] Verify database structure
-
-### 3. Backend Configuration
-- [ ] Update .env file with correct DATABASE_URL
-- [ ] Fix authentication issues in server.js
-- [ ] Test database connectivity
-
-### 4. Frontend Updates
-- [ ] Update ActivityChart.jsx to fetch data from API
-- [ ] Add loading states and error handling
-- [ ] Test admin dashboard with real data
-
-### 5. Testing
-- [ ] Verify backend API endpoints work
-- [ ] Test admin dashboard functionality
-- [ ] Check data visualization in charts
+## Tasks
+- [ ] Replace all occurrences of "Esprim.tn" with "esprim.tn" in the following files:
+  - src/services/api.js
+  - src/pages/user-management-panel/index.jsx
+  - src/pages/system-configuration/components/SystemAlertsSection.jsx
+  - src/pages/secure-pdf-reader/index.jsx
+  - src/pages/secure-pdf-reader/components/SecurityWatermark.jsx
+  - src/pages/report-validation-interface/index.jsx
+  - src/pages/report-submission-form/index.jsx
+  - src/pages/report-submission-form/components/ReportMetadataForm.jsx
+  - src/lib/auth.js
+  - src/pages/login-authentication/components/LoginForm.jsx
+  - src/pages/faculty-validation-dashboard/index.jsx
+  - dist/assets/index-Bpm1ETmN.js (if editable, otherwise skip)
+- [ ] Fix email validation in src/pages/login-authentication/components/LoginForm.jsx:
+  - Change endsWith('@bibesprim.edu ') to endsWith('@esprim.tn')
+  - Update error message to mention "@esprim.tn"
+- [ ] Verify all changes and test login functionality

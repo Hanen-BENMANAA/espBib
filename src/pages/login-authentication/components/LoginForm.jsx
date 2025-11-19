@@ -14,7 +14,7 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
   const validateEmail = (email) => {
     if (!email) return "L'adresse email est requise";
     if (!email?.includes('@')) return "Format d'email invalide";
-    if (!email?.endsWith('@Esprim.tn')) return "Seules les adresses @Esprim.tn sont autorisées";
+    if (!email?.endsWith('@esprim.tn')) return "Seules les adresses @esprim.tn sont autorisées";
     return null;
   };
 
@@ -56,7 +56,7 @@ const LoginForm = ({ onSubmit, isLoading, error }) => {
       <Input
         label="Adresse Email Institutionnelle"
         type="email"
-        placeholder="votre.nom@Esprim.tn"
+        placeholder="votre.nom@esprim.tn"
         value={formData?.email}
         onChange={(e) => handleInputChange('email', e?.target?.value)}
         error={validationErrors?.email}
