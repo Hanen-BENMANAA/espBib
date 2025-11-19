@@ -1,3 +1,6 @@
+-- Assurer l'encodage client pour les accents
+SET client_encoding = 'UTF8';
+
 -- Supprimer l'ancienne table reports si elle existe
 DROP TABLE IF EXISTS reports CASCADE;
 
@@ -25,7 +28,7 @@ CREATE TABLE reports (
   
   file_name VARCHAR(500) NOT NULL,
   file_path VARCHAR(1000) NOT NULL,
-  file_size BIGINT NOT NULL,
+  file_size BIGINT NOT NULL DEFAULT 0,
   file_url VARCHAR(1000),
   
   status VARCHAR(50) DEFAULT 'pending',
@@ -65,18 +68,19 @@ BEFORE UPDATE ON reports
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
 
+-- INSERT corrigé : inclure file_size (par ex. 0) et file_url pour éviter la violation NOT NULL
 INSERT INTO reports (
   user_id, title, author_first_name, author_last_name,
   student_number, email, specialty, academic_year,
-  supervisor, co_supervisor,host_company, defense_date, keywords, abstract,
-  file_name, file_path,status
+  supervisor, co_supervisor, host_company, defense_date, keywords, abstract,
+  file_name, file_path, file_size, file_url, status
 ) VALUES (
-  4,
+  1,
   'Analyse et implémentation d’un système de recommandation intelligent',
-  'Hanen',
-  'Benmanaa',
+  'Ahmed',
+  'Ben Salem',
   'ESP2024030',
-  'hanen.benmanaa@esprim.tn',
+  'ahmed.bensalem@esprim.tn',
   'Génie Informatique',
   '2023-2024',
   'Prof. Leila Trabelsi',
@@ -85,8 +89,9 @@ INSERT INTO reports (
   '2024-06-22',
   ARRAY['Machine Learning', 'Recommandation', 'IA', 'Système intelligent'],
   'Ce projet vise à concevoir un système de recommandation basé sur l’apprentissage automatique pour optimiser la personnalisation des contenus.',
-   'Cahier de charge Biblio.pdf',
+  'Cahier de charge Biblio.pdf',
+  '/uploads/reports/rapport-ESP2024030.pdf',
+  0,
   '/uploads/reports/rapport-ESP2024030.pdf',
   'validated'
 );
-
