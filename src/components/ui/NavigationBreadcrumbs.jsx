@@ -15,9 +15,9 @@ const NavigationBreadcrumbs = () => {
       { label: 'Tableau de Bord', path: '/student-dashboard' },
       { label: 'Soumission de Rapport', path: '/report-submission-form' }
     ],
-    '/faculty-validation-dashboard': [
+    '/teacher-validation-dashboard': [
       { label: 'Accueil', path: '/' },
-      { label: 'Validation des Rapports', path: '/faculty-validation-dashboard' }
+      { label: 'Validation des Rapports', path: '/teacher-validation-dashboard' }
     ],
     '/public-library-catalog': [
       { label: 'Accueil', path: '/' },

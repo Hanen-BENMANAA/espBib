@@ -6,7 +6,7 @@
  * - upload: vérification mimetype + extension
  * - parsing JSON sécurisé pour keywords/checklist
  */
-
+const authRoutes = require('./routes/auth.routes');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -18,12 +18,15 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const morgan = require('morgan');
+
 require('dotenv').config();
 
 // Use centralized database module (assure-toi que backend/db.js exporte pool and query)
 const db = require('./db');
 
 const app = express();
+app.use(morgan('dev'));
 const port = process.env.PORT || 5000;
 
 // ---------- Security middlewares ----------
@@ -47,6 +50,7 @@ app.use('/uploads', express.static(path.join(__dirname, process.env.UPLOAD_DIR |
 // ---------- Helpers ----------
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+app.use('/api/auth', authRoutes);
 const safeJsonParse = (val, fallback) => {
   if (val === undefined || val === null) return fallback;
   if (typeof val === 'object') return val;

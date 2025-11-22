@@ -126,7 +126,7 @@ Réponse attendue :
 #### Login
 
 ```bash
-curl -X POST http://localhost:5000/api/auth/login \
+curl -X POST http://localhost:5000/api/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "ahmed.bensalem@esprim.tn",

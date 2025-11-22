@@ -119,12 +119,21 @@ export const login = async (credentials) => {
     };
 
     localStorage.setItem('esprim_session', JSON.stringify(session));
-    console.log('[Auth] Login successful:', { 
-      role: session.userRole, 
-      email: session.userEmail 
-    });
+// AJOUTE ÇA :
+console.log('[Auth] Redirecting user with role:', session.userRole);
 
-    return { success: true, user: response.user };
+// Redirection selon le rôle
+if (response.user.role === 'teacher') {
+  window.location.href = '/teacher/dashboard';
+} else if (response.user.role === 'admin') {
+  window.location.href = '/admin/dashboard';
+} else {
+  window.location.href = '/student/dashboard';
+}
+
+return { success: true, user: response.user };
+
+  
 
   } catch (error) {
     console.error('[Auth] Login error:', error);

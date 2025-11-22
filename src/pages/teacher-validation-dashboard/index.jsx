@@ -4,11 +4,10 @@ import Header from '../../components/ui/Header';
 import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 import { 
-  getAssignedReports, 
   getPendingReports, 
   getTeacherStats,
   validateReport 
-} from '../../services/reportsApi';
+} from '../../services/api';
 
 const TeacherValidationDashboard = () => {
   const navigate = useNavigate();
@@ -81,41 +80,30 @@ const TeacherValidationDashboard = () => {
     setShowValidationModal(true);
   };
 
-  const handleSubmitValidation = async () => {
-    if (!selectedReport) return;
+ const handleSubmitValidation = async () => {
+  if (validationAction === 'reject' && !comments.trim()) {
+    alert('Les commentaires sont obligatoires pour un rejet');
+    return;
+  }
 
-    try {
-      setSubmitting(true);
+  setSubmitting(true);
+  try {
+    await validateReport(
+      selectedReport.id,
+      validationAction === 'validate' ? 'validate' : 'reject',
+      comments
+    );
 
-      const result = await validateReport(
-        selectedReport.id,
-        validationAction,
-        comments,
-        null // checklist can be added later
-      );
-
-      if (result.success) {
-        // Refresh data
-        await fetchDashboardData();
-        
-        setShowValidationModal(false);
-        setSelectedReport(null);
-        setComments('');
-        
-        // Show success message
-        alert(
-          validationAction === 'validate' 
-            ? 'Rapport validé avec succès!' 
-            : 'Rapport rejeté avec succès'
-        );
-      }
-    } catch (err) {
-      console.error('Error submitting validation:', err);
-      alert('Erreur lors de la validation du rapport');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    // Recharge les données
+    fetchDashboardData();
+    setShowValidationModal(false);
+    alert('Rapport traité avec succès !');
+  } catch (err) {
+    alert('Erreur lors du traitement');
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';

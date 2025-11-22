@@ -2,6 +2,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { secret, expiresIn } = require('../config/jwt');
 const User = require('../models/User');
+const valid = await bcrypt.compare(password, user.password);
+
+
 
 async function register({ email, password, firstName, lastName, role = 'student' }) {
   const existing = await User.findOne({ where: { email } });

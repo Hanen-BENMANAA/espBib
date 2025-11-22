@@ -1,31 +1,59 @@
-const reportService = require('../services/report.service');
+// backend/reports/report.controller.js
+
+const reportService = require('../reports/report.service');
 
 async function submit(req, res, next) {
   try {
-    // expects body fields and optionally file handling done in route
-    const payload = {
-      userId: req.user.id,
-      title: req.body.title,
-      authorFirstName: req.body.authorFirstName,
-      authorLastName: req.body.authorLastName,
-      studentNumber: req.body.studentNumber,
-      email: req.body.email,
-      specialty: req.body.specialty,
-      academicYear: req.body.academicYear,
-      supervisor: req.body.supervisor,
-      coSupervisor: req.body.coSupervisor,
-      defenseDate: req.body.defenseDate,
-      keywords: req.body.keywords ? JSON.parse(req.body.keywords) : [],
-      abstract: req.body.abstract,
-      fileName: req.file ? req.file.originalname : null,
-      filePath: req.file ? req.file.path : null,
-      fileSize: req.file ? req.file.size : null,
-      fileUrl: req.file ? (`/uploads/${req.file.filename}`) : null,
-      status: 'pending',
-      checklist: req.body.checklist ? JSON.parse(req.body.checklist) : {}
-    };
-    const report = await reportService.createReport(payload);
-    res.status(201).json({ success: true, report });
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({ error: "PDF file is required" });
+    }
+
+    const {
+      title,
+      author_first_name,
+      author_last_name,
+      student_number,
+      email,
+      specialty,
+      academic_year,
+      supervisor,
+      co_supervisor,
+      host_company,
+      defense_date,
+      keywords,
+      abstract,
+      allow_public_access,
+      is_confidential,
+      checklist
+    } = req.body;
+
+    const report = await reportService.createReport({
+      user_id: userId,
+      title,
+      author_first_name,
+      author_last_name,
+      student_number,
+      email,
+      specialty,
+      academic_year,
+      supervisor,
+      co_supervisor,
+      host_company,
+      defense_date,
+      keywords: keywords ? keywords.split(",") : [],
+      abstract,
+      allow_public_access: allow_public_access === "true",
+      is_confidential: is_confidential === "true",
+      file_name: req.file.originalname,
+      file_path: `/uploads/${req.file.filename}`,
+      file_size: req.file.size,
+      file_url: `/uploads/${req.file.filename}`,
+      checklist: checklist ? JSON.parse(checklist) : {}
+    });
+
+    res.status(201).json({ message: "Report submitted", report });
   } catch (err) {
     next(err);
   }
@@ -33,8 +61,9 @@ async function submit(req, res, next) {
 
 async function mySubmissions(req, res, next) {
   try {
-    const reports = await reportService.getReportsByUser(req.user.id);
-    res.json({ success: true, data: reports });
+    const userId = req.user.id;
+    const reports = await reportService.getReportsByUser(userId);
+    res.json(reports);
   } catch (err) {
     next(err);
   }
@@ -43,11 +72,17 @@ async function mySubmissions(req, res, next) {
 async function getById(req, res, next) {
   try {
     const report = await reportService.getReportById(req.params.id);
-    if (!report) return res.status(404).json({ error: 'Not found' });
-    res.json({ success: true, data: report });
+
+    if (!report) return res.status(404).json({ error: "Report not found" });
+
+    res.json(report);
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { submit, mySubmissions, getById };
+module.exports = {
+  submit,
+  mySubmissions,
+  getById
+};

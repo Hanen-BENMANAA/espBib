@@ -7,7 +7,7 @@ const RoleBasedSidebar = ({
   isCollapsed = false, 
   isOpen = false, 
   onToggle,
-  userRole = 'teacher' 
+  e = 'teacher' 
 }) => {
   const location = useLocation();
   const [expandedSections, setExpandedSections] = useState({});
@@ -66,7 +66,7 @@ const RoleBasedSidebar = ({
   // Filter navigation items based on user role
   const getVisibleItems = () => {
     return navigationItems?.filter(item => 
-      item?.roles?.includes(userRole)
+      item?.roles?.includes(e)
     );
   };
 

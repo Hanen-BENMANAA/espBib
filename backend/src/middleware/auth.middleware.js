@@ -1,15 +1,24 @@
+// middleware/auth.middleware.js  (VERSION CORRIGÉE ET COMPATIBLE 2025)
 const jwt = require('jsonwebtoken');
-const { secret } = require('../config/jwt');
+require('dotenv').config();
 
-module.exports = async function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: 'No token' });
+const JWT_SECRET = process.env.JWT_SECRET;
+
+module.exports = function authenticate(req, res, next) {
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token manquant ou invalide' });
+  }
+
   const token = authHeader.split(' ')[1];
+
   try {
-    const payload = jwt.verify(token, secret);
-    req.user = payload; // contains id, email, role, etc.
-    next();
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = payload; // { id, email, role, ... }
+    return next();
   } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
+    console.log('Token invalide ou expiré:', err.message);
+    return res.status(401).json({ error: 'Token invalide ou expiré' });
   }
 };

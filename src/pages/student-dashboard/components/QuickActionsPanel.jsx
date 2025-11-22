@@ -1,75 +1,87 @@
 import React from 'react';
-import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
+import { Link } from 'react-router-dom';
+import Icon from '../AppIcon';
 
-const QuickActionsPanel = ({ draftCount, onNewSubmission, onContinueDraft }) => {
-  const quickActions = [
+const QuickActionPanel = () => {
+  const actions = [
     {
-      title: 'Nouveau rapport',
-      description: 'Commencer une nouvelle soumission PFE',
-      icon: 'Plus',
-      variant: 'default',
-      action: onNewSubmission
+      title: 'Nouveau Rapport',
+      description: 'Soumettre un nouveau rapport PFE',
+      icon: 'PlusCircle',
+      to: '/student/submit',
+      color: 'bg-primary text-primary-foreground'
     },
     {
-      title: 'Continuer brouillon',
-      description: `${draftCount} brouillon(s) en attente`,
-      icon: 'Edit',
-      variant: 'outline',
-      action: onContinueDraft,
-      disabled: draftCount === 0
+      title: 'Mes Soumissions',
+      description: 'Voir l’état de mes rapports',
+      icon: 'FileText',
+      to: '/student/dashboard',
+      color: 'bg-muted text-foreground'
     },
     {
-      title: 'Bibliothèque',
-      description: 'Consulter les rapports validés',
-      icon: 'Library',
-      variant: 'ghost',
-      action: () => window.location.href = '/public-library-catalog' // Fallback
+      title: 'Rechercher',
+      description: 'Explorer la bibliothèque',
+      icon: 'Search',
+      to: '/public-library-catalog',
+      color: 'bg-muted text-foreground'
+    },
+    {
+      title: 'Brouillons',
+      description: 'Continuer un rapport en cours',
+      icon: 'Edit3',
+      to: '#',
+      color: 'bg-muted text-foreground',
+      disabled: true
     }
   ];
 
   return (
-    <div className="bg-card border border-border rounded-academic p-6 academic-shadow-sm">
-      <h3 className="text-lg font-heading font-semibold text-foreground mb-4">
-        Actions rapides
+    <div className="bg-card border border-border rounded-academic p-6 shadow-sm sticky top-6 z-10">
+      {/* Titre */}
+      <h3 className="text-lg font-heading font-semibold mb-5 text-foreground flex items-center justify-between">
+        Actions Rapides
+        <Icon name="Zap" size={20} className="text-primary" />
       </h3>
-      <div className="space-y-3">
-        {quickActions.map((action, index) => (
-          <button
+
+      {/* Liste des actions */}
+      <div className="space-y-4">
+        {actions.map((action, index) => (
+          <Link
             key={index}
-            onClick={action.action}
-            disabled={action.disabled}
-            className={`w-full p-4 text-left border border-border rounded-academic hover:bg-muted/50 academic-transition ${
-              action.disabled ? 'opacity-50 cursor-not-allowed' : ''
+            to={action.disabled ? '#' : action.to}
+            className={`block p-4 rounded-academic border border-border transition-all hover:shadow-md hover:-translate-y-0.5 ${
+              action.disabled
+                ? 'opacity-50 cursor-not-allowed pointer-events-none'
+                : 'cursor-pointer hover:border-primary/30'
             }`}
           >
-            <div className="flex items-start space-x-3">
-              <div className={`p-2 rounded-academic ${
-                action.variant === 'default' ? 'bg-primary text-primary-foreground' :
-                action.variant === 'outline' ? 'bg-muted text-foreground' :
-                'bg-muted/50 text-muted-foreground'
-              }`}>
-                <Icon name={action.icon} size={20} />
+            <div className="flex items-center space-x-4">
+              <div className={`p-2.5 rounded-academic flex-shrink-0 ${action.color}`}>
+                <Icon name={action.icon} size={22} />
               </div>
-              <div className="flex-1">
-                <h4 className="text-sm font-medium text-foreground mb-1">
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-foreground truncate">
                   {action.title}
                 </h4>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">
                   {action.description}
                 </p>
               </div>
-              <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
+              {!action.disabled && (
+                <Icon name="ChevronRight" size={18} className="text-muted-foreground flex-shrink-0" />
+              )}
             </div>
-          </button>
+          </Link>
         ))}
       </div>
-      <div className="mt-6 pt-4 border-t border-border">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Sauvegarde automatique activée</span>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-success rounded-full"></div>
-            <span>Connecté</span>
+
+      {/* Pied de page */}
+      <div className="mt-6 pt-5 border-t border-border">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Sauvegarde automatique</span>
+          <div className="flex items-center space-x-1.5">
+            <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+            <span className="text-success font-medium">Connecté</span>
           </div>
         </div>
       </div>
@@ -77,4 +89,4 @@ const QuickActionsPanel = ({ draftCount, onNewSubmission, onContinueDraft }) => 
   );
 };
 
-export default QuickActionsPanel;
+export default QuickActionPanel;

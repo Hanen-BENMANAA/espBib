@@ -1,147 +1,152 @@
-import React, { useState, useEffect } from 'react';
-import Icon from '../AppIcon';
-import Button from './Button';
+import React, { useEffect, useState, useCallback } from 'react';
+import PropTypes from 'prop-types';
 
-const StatusIndicatorBanner = ({ 
-  type = 'info', 
-  message, 
-  isVisible = false, 
-  onDismiss,
+/**
+ * StatusIndicatorBanner
+ * - does NOT call parent setState during render
+ * - calls onDismiss only from event handlers or useEffect (after render)
+ * - supports autoHide with a timer
+ */
+const StatusIndicatorBanner = ({
+  type = 'info',
+  message = '',
+  isVisible = false,
+  onDismiss = () => {},
   autoHide = false,
   autoHideDelay = 5000,
   showProgress = false,
-  actionLabel,
-  onAction
+  actionLabel = '',
+  onAction = () => {}
 }) => {
-  const [isShowing, setIsShowing] = useState(isVisible);
-  const [progress, setProgress] = useState(100);
+  const [visible, setVisible] = useState(Boolean(isVisible));
+  const [progress, setProgress] = useState(0);
 
+  // sync prop -> local state (safe; does not call parent)
   useEffect(() => {
-    setIsShowing(isVisible);
-    if (isVisible && autoHide) {
+    setVisible(Boolean(isVisible));
+  }, [isVisible]);
+
+  // auto-hide effect: schedule onDismiss after delay (runs after render)
+  useEffect(() => {
+    if (!visible || !autoHide) {
+      setProgress(0);
+      return;
+    }
+
+    let start = Date.now();
+    let rafId = null;
+    let timerId = null;
+
+    // progress updater using RAF for smooth progress bar if requested
+    const tick = () => {
+      const elapsed = Date.now() - start;
+      const pct = Math.min(100, Math.round((elapsed / autoHideDelay) * 100));
+      setProgress(pct);
+      if (pct < 100) {
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+
+    // start tick and fallback timeout to ensure dismissal
+    rafId = requestAnimationFrame(tick);
+    timerId = setTimeout(() => {
+      // call onDismiss after the timeout (safe - runs after render)
+      setVisible(false);
       setProgress(100);
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          const newProgress = prev - (100 / (autoHideDelay / 100));
-          if (newProgress <= 0) {
-            clearInterval(interval);
-            handleDismiss();
-            return 0;
-          }
-          return newProgress;
-        });
-      }, 100);
+      try {
+        onDismiss(); // parent will handle setShowBanner(false)
+      } catch (e) {
+        // swallow to avoid unhandled exceptions
+        // parent should be robust to being called here
+        // console.error('onDismiss error', e);
+      }
+    }, autoHideDelay);
 
-      return () => clearInterval(interval);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (timerId) clearTimeout(timerId);
+      setProgress(0);
+    };
+  }, [visible, autoHide, autoHideDelay, onDismiss]);
+
+  // dismiss handler invoked by user action (click)
+  const handleDismiss = useCallback(() => {
+    setVisible(false); // update internal first (safe)
+    try {
+      onDismiss(); // run parent's handler (safe - invoked from event handler)
+    } catch (e) {
+      // ignore
     }
-  }, [isVisible, autoHide, autoHideDelay]);
+  }, [onDismiss]);
 
-  const handleDismiss = () => {
-    setIsShowing(false);
-    if (onDismiss) {
-      onDismiss();
+  const handleAction = useCallback(() => {
+    try {
+      onAction();
+    } catch (e) {
+      // ignore
     }
-  };
+  }, [onAction]);
 
-  const getStatusConfig = () => {
-    switch (type) {
-      case 'success':
-        return {
-          bgColor: 'bg-success/10',
-          borderColor: 'border-success/20',
-          textColor: 'text-success-foreground',
-          iconColor: 'text-success',
-          icon: 'CheckCircle'
-        };
-      case 'warning':
-        return {
-          bgColor: 'bg-warning/10',
-          borderColor: 'border-warning/20',
-          textColor: 'text-warning-foreground',
-          iconColor: 'text-warning',
-          icon: 'AlertTriangle'
-        };
-      case 'error':
-        return {
-          bgColor: 'bg-error/10',
-          borderColor: 'border-error/20',
-          textColor: 'text-error-foreground',
-          iconColor: 'text-error',
-          icon: 'AlertCircle'
-        };
-      case 'session':
-        return {
-          bgColor: 'bg-accent/10',
-          borderColor: 'border-accent/20',
-          textColor: 'text-accent-foreground',
-          iconColor: 'text-accent',
-          icon: 'Clock'
-        };
-      default:
-        return {
-          bgColor: 'bg-primary/10',
-          borderColor: 'border-primary/20',
-          textColor: 'text-primary-foreground',
-          iconColor: 'text-primary',
-          icon: 'Info'
-        };
-    }
-  };
+  if (!visible) return null;
 
-  const config = getStatusConfig();
-
-  if (!isShowing || !message) {
-    return null;
-  }
+  // basic styles: adapt to your design system
+  const bg =
+    type === 'success' ? 'bg-green-50 border-green-200' :
+    type === 'error' ? 'bg-red-50 border-red-200' :
+    type === 'warning' ? 'bg-yellow-50 border-yellow-200' :
+    'bg-blue-50 border-blue-200';
 
   return (
-    <div className={`relative border-l-4 ${config?.bgColor} ${config?.borderColor} academic-transition-layout`}>
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center space-x-3">
-          <Icon 
-            name={config?.icon} 
-            size={20} 
-            className={config?.iconColor}
-          />
-          <div className="flex-1">
-            <p className={`text-sm font-medium ${config?.textColor}`}>
-              {message}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          {actionLabel && onAction && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onAction}
-              className="text-xs"
+    <div className={`border px-4 py-3 rounded ${bg} relative`} role="status" aria-live="polite">
+      <div className="flex items-start justify-between space-x-4">
+        <div className="flex-1">
+          <p className="text-sm text-foreground">{message}</p>
+          {actionLabel && (
+            <button
+              onClick={handleAction}
+              className="text-sm text-primary underline mt-2"
+              type="button"
             >
               {actionLabel}
-            </Button>
+            </button>
           )}
-          
-          <Button
-            variant="ghost"
-            size="icon"
+        </div>
+
+        <div className="flex items-start space-x-2">
+          <button
             onClick={handleDismiss}
-            className="h-6 w-6"
+            aria-label="Dismiss"
+            className="text-muted-foreground hover:text-foreground"
+            type="button"
           >
-            <Icon name="X" size={14} />
-          </Button>
+            ✕
+          </button>
         </div>
       </div>
-      {showProgress && autoHide && (
-        <div className="absolute bottom-0 left-0 h-1 bg-border">
-          <div 
-            className={`h-full ${config?.iconColor?.replace('text-', 'bg-')} academic-transition`}
-            style={{ width: `${progress}%` }}
+
+      {showProgress && (
+        <div className="absolute left-0 right-0 bottom-0 h-1 bg-transparent mt-2">
+          <div
+            style={{ width: `${progress}%`, transition: 'width 120ms linear' }}
+            className={`h-1 ${type === 'success' ? 'bg-green-600' : type === 'error' ? 'bg-red-600' : type === 'warning' ? 'bg-yellow-600' : 'bg-blue-600'}`}
+            aria-hidden="true"
           />
         </div>
       )}
     </div>
   );
+};
+
+StatusIndicatorBanner.propTypes = {
+  type: PropTypes.oneOf(['info', 'success', 'warning', 'error']),
+  message: PropTypes.string,
+  isVisible: PropTypes.bool,
+  onDismiss: PropTypes.func,
+  autoHide: PropTypes.bool,
+  autoHideDelay: PropTypes.number,
+  showProgress: PropTypes.bool,
+  actionLabel: PropTypes.string,
+  onAction: PropTypes.func
 };
 
 export default StatusIndicatorBanner;
