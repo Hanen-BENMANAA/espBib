@@ -1,4 +1,4 @@
-// src/services/api.js - COMPLETE VERSION
+// src/services/api.js - VERSION FINALE 2025 (COMPLETE & READY)
 
 import axios from 'axios';
 
@@ -9,7 +9,7 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Interceptor pour ajouter le token automatiquement
+// Interceptor : ajoute le token automatiquement
 api.interceptors.request.use(config => {
   const session = JSON.parse(localStorage.getItem('esprim_session') || '{}');
   if (session.token) {
@@ -18,7 +18,7 @@ api.interceptors.request.use(config => {
   return config;
 });
 
-// Interceptor 401 → logout auto
+// Interceptor : logout auto sur 401
 api.interceptors.response.use(
   response => response,
   error => {
@@ -45,28 +45,41 @@ export const authAPI = {
 // STUDENT REPORTS API
 // ============================================================================
 export const studentReportsAPI = {
-  submitReport: (formData) => 
+  submitReport: (formData) =>
     api.post('/reports/submit', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     }).then(r => r.data),
 
   getMySubmissions: () => api.get('/reports/my-submissions').then(r => r.data),
-  
+
   getReportById: (id) => api.get(`/reports/${id}`).then(r => r.data)
 };
 
 // ============================================================================
-// TEACHER REPORTS API
+// TEACHER REPORTS API - FULLY UPDATED
 // ============================================================================
 export const teacherReportsAPI = {
+  // Dashboard data
   getAssignedReports: () => api.get('/reports/assigned-to-me').then(r => r.data),
-  
   getPendingReports: () => api.get('/reports/pending-for-teacher').then(r => r.data),
-  
   getTeacherStats: () => api.get('/reports/teacher-stats').then(r => r.data),
-  
-  validateReport: (id, action, comments = '') => 
-    api.put(`/reports/${id}/validate`, { action, comments }).then(r => r.data)
+
+  // Single report with comments + history
+  getReportById: (id) => api.get(`/reports/${id}`).then(r => r.data),
+
+  // Validation actions
+  validateReport: (reportId, { decision, comments = '' }) =>
+    api.put(`/reports/${reportId}/validate`, { decision, comments }).then(r => r.data),
+
+  // Comments system
+  addComment: (reportId, content) =>
+    api.post(`/reports/${reportId}/comments`, { content }).then(r => r.data),
+
+  updateComment: (commentId, content) =>
+    api.put(`/comments/${commentId}`, { content }).then(r => r.data),
+
+  deleteComment: (commentId) =>
+    api.delete(`/comments/${commentId}`).then(r => r.data),
 };
 
 // ============================================================================
@@ -74,20 +87,25 @@ export const teacherReportsAPI = {
 // ============================================================================
 export const adminReportsAPI = {
   getAllReports: () => api.get('/reports/all').then(r => r.data),
-  
   getSystemStats: () => api.get('/reports/admin-stats').then(r => r.data)
 };
 
 // ============================================================================
-// LEGACY EXPORTS (for backward compatibility)
+// LEGACY EXPORTS (pour compatibilité avec ton ancien code)
 // ============================================================================
 export const getMySubmissions = () => studentReportsAPI.getMySubmissions();
 export const getPendingReports = () => teacherReportsAPI.getPendingReports();
 export const getTeacherStats = () => teacherReportsAPI.getTeacherStats();
 export const getAssignedReports = () => teacherReportsAPI.getAssignedReports();
-export const validateReport = (id, action, comments) => 
-  teacherReportsAPI.validateReport(id, action, comments);
+
+// Ancienne signature → redirigée vers la nouvelle (plus claire)
+export const validateReport = (id, decision, comments = '') =>
+  teacherReportsAPI.validateReport(id, { decision, comments });
+
+// Pour les étudiants
 export const submitReport = (formData) => studentReportsAPI.submitReport(formData);
-export const getReportById = (id) => studentReportsAPI.getReportById(id);
+
+// Utilisé dans ReportValidationInterface
+export const getReportById = (id) => teacherReportsAPI.getReportById(id);
 
 export default api;

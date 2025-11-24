@@ -1,4 +1,5 @@
-// Routes.jsx - VERSION STABLE 2025
+// Routes.jsx - VERSION FINALE 2025 (PRÊTE À L'EMPLOI)
+
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { getUser } from "./lib/auth";
@@ -10,6 +11,9 @@ import ReportSubmissionForm from "./pages/report-submission-form";
 import SecurePDFReader from "./pages/secure-pdf-reader";
 import TeacherValidationDashboard from "./pages/teacher-validation-dashboard";
 import AdministrativeDashboard from "./pages/administrative-dashboard";
+
+// AJOUT CRUCIAL : Import de l'interface de validation
+import ReportValidationInterface from "./pages/report-validation-interface";  // VÉRIFIE LE CHEMIN !
 
 // 404 PAGE
 const NotFound = () => (
@@ -51,7 +55,6 @@ const ProtectedRoute = ({ children, allowedRole }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Role mismatch → auto-redirect to correct dashboard
   if (user.role !== allowedRole) {
     const redirectMap = {
       student: "/student/dashboard",
@@ -92,13 +95,11 @@ export default function AppRoutes() {
           }
         />
 
-        {/* Backward compatibility */}
         <Route 
           path="/report-submission-form"
           element={<Navigate to="/student/submit-report" replace />}
         />
 
-        {/* PDF Viewer Routes */}
         <Route 
           path="/student/view-report/:id"
           element={
@@ -127,7 +128,17 @@ export default function AppRoutes() {
           }
         />
 
-        {/* Compatibility route */}
+      {/* INTERFACE DE VALIDATION D'UN RAPPORT - AVEC ID DANS L'URL */}
+<Route 
+  path="/report-validation-interface/:reportId"
+  element={
+    <ProtectedRoute allowedRole="teacher">
+      <ReportValidationInterface />
+    </ProtectedRoute>
+  } 
+/>
+
+        {/* Compatibilité ancienne URL */}
         <Route 
           path="/teacher-validation-dashboard"
           element={<Navigate to="/teacher/dashboard" replace />}
@@ -143,7 +154,7 @@ export default function AppRoutes() {
           }
         />
 
-        {/* 404 */}
+        {/* 404 - Doit être en dernier */}
         <Route path="*" element={<NotFound />} />
 
       </Routes>
