@@ -39,7 +39,7 @@ const FilterToolbar = ({ onFiltersChange, activeFilters = {} }) => {
     { value: 'dr-ben-ahmed', label: 'Dr. Ben Ahmed' },
     { value: 'prof-gharbi', label: 'Prof. Gharbi' },
     { value: 'dr-mansouri', label: 'Dr. Mansouri' },
-    { value: 'prof-trabelsi', label: 'Prof. Trabelsi' },
+    { value: 'Leila Trabelsi', label: 'Prof. Trabelsi' },
     { value: 'dr-khelifi', label: 'Dr. Khelifi' }
   ];
 

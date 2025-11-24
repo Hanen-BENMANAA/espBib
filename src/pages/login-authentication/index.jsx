@@ -38,14 +38,14 @@ const LoginAuthentication = () => {
   // ROUTE REDIRECTION
   // ----------------------------
   const redirectToDashboard = (role) => {
-    const routes = {
-      student: '/student/dashboard',
-      teacher: '/teacher-validation-dashboard',
-      admin: '/admin/dashboard'
-    };
-
-    navigate(routes[role] || '/login');
+  const routes = {
+    student: '/student/dashboard',
+    teacher: '/teacher/dashboard',        // ← CORRECT PATH
+    admin: '/admin/dashboard'
   };
+
+  navigate(routes[role] || '/login');
+};
 
   // ----------------------------
   // LOGIN HANDLER

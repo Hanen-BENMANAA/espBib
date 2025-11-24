@@ -85,6 +85,7 @@ async function getReportsByUser(userId) {
   return result.rows;
 }
 
+
 // Get report by ID
 async function getReportById(id) {
   const result = await db.query(
@@ -94,8 +95,30 @@ async function getReportById(id) {
   return result.rows[0];
 }
 
+async function getPendingForTeacher() {
+  const result = await db.query(
+    `SELECT * FROM reports WHERE status = 'pending' ORDER BY submission_date DESC`
+  );
+  return result.rows;
+}
+
+async function getTeacherStats() {
+  const result = await db.query(`
+    SELECT
+      COUNT(*) AS total_reports,
+      COUNT(*) FILTER (WHERE status = 'validated') AS validated_reports,
+      COUNT(*) FILTER (WHERE status = 'rejected') AS rejected_reports,
+      COUNT(*) FILTER (WHERE status = 'pending') AS pending_reports
+    FROM reports
+  `);
+
+  return result.rows[0];
+}
+
 module.exports = {
   createReport,
   getReportsByUser,
-  getReportById
+  getReportById,
+  getPendingForTeacher,
+  getTeacherStats
 };

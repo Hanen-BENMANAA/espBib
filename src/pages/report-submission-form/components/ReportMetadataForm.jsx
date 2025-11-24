@@ -27,7 +27,7 @@ const ReportMetadataForm = ({ formData, onFormChange, errors = {} }) => {
 
   const supervisorOptions = [
     { value: 'prof-ben-ahmed', label: 'Prof. Ahmed Ben Salah - Informatique' },
-    { value: 'prof-trabelsi', label: 'Prof. Leila Trabelsi - Électrique' },
+    { value: 'Leila Trabelsi', label: 'Prof. Leila Trabelsi - Électrique' },
     { value: 'prof-gharbi', label: 'Prof. Mohamed Gharbi - Mécanique' },
     { value: 'prof-mansouri', label: 'Prof. Fatma Mansouri - Civil' },
     { value: 'prof-khelifi', label: 'Prof. Karim Khelifi - Industriel' },
