@@ -143,7 +143,11 @@ const ReportSubmissionForm = () => {
           }
         });
 
-        if (!response.ok) throw new Error('Erreur de chargement');
+if (!response.ok) {
+    const text = await response.text();
+    console.error("Backend error response:", text);
+    throw new Error(`Erreur: ${response.status}`);
+}
 
         const data = await response.json();
         setMyReports(data);

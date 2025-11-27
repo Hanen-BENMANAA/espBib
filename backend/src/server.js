@@ -1,51 +1,146 @@
-// backend/server.js - VERSION FINALE 100% FONCTIONNELLE
+// backend/server.js - FIXED VERSION 2025
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const jwt = require('jsonwebtoken');
 const path = require('path');
+const fs = require('fs');
 
 const db = require('./db');
 const authRoutes = require('./routes/auth.routes');
 const reportsRoutes = require('./routes/reports.routes');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// ==================== MIDDLEWARES ====================
 app.use(morgan('dev'));
-app.use(helmet());
-app.use(cors({ origin: '*' }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads/reports')));
 
-// JWT Authentication
-const JWT_SECRET = process.env.JWT_SECRET;
+// Helmet with relaxed CSP for PDF viewing
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      frameAncestors: ["http:", "https:"], // allow all
+    },
+  },
+  frameguard: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
-const authenticateToken = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Token requis' });
 
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-    next();
-  } catch (err) {
-    res.status(401).json({ error: 'Token invalide' });
+app.use(cors({
+  origin: '*',
+  credentials: true
+}));
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// ==================== STATIC FILES - FIXED ====================
+const uploadsPath = path.join(__dirname, 'uploads');
+
+// Check if uploads directory exists
+if (!fs.existsSync(uploadsPath)) {
+  console.error('❌ UPLOADS DIRECTORY DOES NOT EXIST:', uploadsPath);
+  fs.mkdirSync(uploadsPath, { recursive: true });
+  console.log('✅ Created uploads directory:', uploadsPath);
+} else {
+  console.log('✅ Uploads directory exists:', uploadsPath);
+}
+
+// Check if reports subdirectory exists
+const reportsPath = path.join(uploadsPath, 'reports');
+if (!fs.existsSync(reportsPath)) {
+  console.error('❌ REPORTS DIRECTORY DOES NOT EXIST:', reportsPath);
+  fs.mkdirSync(reportsPath, { recursive: true });
+  console.log('✅ Created reports directory:', reportsPath);
+} else {
+  console.log('✅ Reports directory exists:', reportsPath);
+  
+  // List files in reports directory
+  const files = fs.readdirSync(reportsPath);
+  console.log('📁 Files in reports directory:', files.length > 0 ? files : 'EMPTY');
+}
+
+// Serve static files from uploads directory
+app.use('/uploads', (req, res, next) => {
+  console.log(`📄 PDF Request → ${req.originalUrl}`);
+  next();
+});
+
+app.use('/uploads', express.static(uploadsPath, {
+  setHeaders: (res, filepath) => {
+    console.log(`📤 Serving file: ${filepath}`);
+    if (filepath.endsWith('.pdf')) {
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'inline',
+        'Cache-Control': 'no-cache',
+        'Access-Control-Allow-Origin': '*'
+      });
+    }
   }
-};
+}));
 
-// Helper pour éviter les try/catch
-const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+// Fallback: if file not found in /uploads, log detailed error
+app.use('/uploads/*', (req, res) => {
+  const requestedPath = req.originalUrl.replace('/uploads/', '');
+  const fullPath = path.join(uploadsPath, requestedPath);
+  
+  console.error('❌ FILE NOT FOUND');
+  console.error('  Requested URL:', req.originalUrl);
+  console.error('  Looking for file:', fullPath);
+  console.error('  File exists?', fs.existsSync(fullPath));
+  
+  if (!fs.existsSync(fullPath)) {
+    // Check if parent directory exists
+    const dir = path.dirname(fullPath);
+    console.error('  Parent directory:', dir);
+    console.error('  Parent directory exists?', fs.existsSync(dir));
+    
+    if (fs.existsSync(dir)) {
+      const filesInDir = fs.readdirSync(dir);
+      console.error('  Files in directory:', filesInDir);
+    }
+  }
+  
+  res.status(404).json({ 
+    error: 'File not found',
+    requested: req.originalUrl,
+    path: fullPath
+  });
+});
 
-// Routes de base
-app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
+// ==================== ROUTES ====================
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uploadsPath: uploadsPath
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportsRoutes);
 
-// Démarrage du serveur
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`ESPRIM Virtual Library - Backend prêt !`);
+// 404 for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API route not found' });
 });
+
+// ==================== STARTUP ====================
+app.listen(PORT, () => {
+  console.log('\n================================');
+  console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`📁 Uploads path: ${uploadsPath}`);
+  console.log(`📄 Reports path: ${reportsPath}`);
+  console.log('================================\n');
+});
+
+module.exports = app;

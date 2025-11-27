@@ -1,139 +1,123 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
-import NavigationHeader from '../../components/ui/NavigationHeader';
-import RoleBasedSidebar from '../../components/ui/RoleBasedSidebar';
+import { Menu, Grid3x3, Library, FileText } from 'lucide-react';
+
 import BreadcrumbTrail from '../../components/ui/BreadcrumbTrail';
-import Icon from '../../components/AppIcon';
 import Button from '../../components/ui/Button';
 
-// Import all components
 import PDFViewer from './components/PDFViewer';
 import ValidationChecklist from './components/ValidationChecklist';
 import CommentSystem from './components/CommentSystem';
 import ValidationActions from './components/ValidationActions';
 import ValidationHistory from './components/ValidationHistory';
 
-// Import API service
 import { teacherReportsAPI } from '../../services/api';
 
 const ReportValidationInterface = () => {
   const location = useLocation();
-  const { reportId: urlReportId } = useParams(); // Récupère l'ID depuis l'URL
+  const { reportId: urlReportId } = useParams();
   const navigate = useNavigate();
 
-  // CETTE LIGNE DOIT ÊTRE EN PREMIER !
   const reportId = location.state?.reportId || urlReportId;
 
-  // DEBUG : Tu verras l'ID dans la console
-  console.log('Report ID reçu dans ReportValidationInterface →', reportId);
-
-  // Layout state
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Layout
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('validation');
 
-  // PDF viewer state
+  // PDF Viewer
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(45);
+  const [totalPages, setTotalPages] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Validation state
-  const [checklistData, setChecklistData] = useState({});
-  const [comments, setComments] = useState([]);
-  const [validationHistory, setValidationHistory] = useState([]);
-
-  // Loading & error states
+  // Data
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Report data from API
   const [reportData, setReportData] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [validationHistory, setValidationHistory] = useState([]);
+  const [checklistData, setChecklistData] = useState({});
 
-  // Current user
-  const [currentUser] = useState({
-    name: 'Marie Dubois',
-    role: 'teacher',
-    email: 'marie.dubois@esprim.tn',
-    department: 'Génie Logiciel'
-  });
+  const currentUser = {
+    name: 'Leila Trabelsi',
+    initials: 'LT',
+    role: 'Enseignant'
+  };
 
-  // Chargement du rapport
-  useEffect(() => {
-    if (!reportId) {
-      console.warn('Aucun ID de rapport → redirection');
-      navigate('/teacher/dashboard', { replace: true });
-      return;
-    }
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-    const fetchReportData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+useEffect(() => {
+  if (!reportId) {
+    navigate('/teacher/dashboard', { replace: true });
+    return;
+  }
 
-        const response = await teacherReportsAPI.getReportById(reportId);
+  const fetchReport = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        if (response.success && response.data) {
-          const report = response.data;
+      const response = await teacherReportsAPI.getReportById(reportId);
 
-          setReportData({
-            id: report.id,
-            title: report.title || 'Sans titre',
-            studentName: `${report.author_first_name || ''} ${report.author_last_name || ''}`.trim(),
-            studentEmail: report.student_email || report.email || 'N/A',
-            specialty: report.specialty || 'Non spécifié',
-            year: report.academic_year || new Date().getFullYear().toString(),
-            submissionDate: report.submission_date ? new Date(report.submission_date) : new Date(),
-            status: report.status || 'pending_validation',
-            fileSize: report.file_size ? `${(report.file_size / 1024 / 1024).toFixed(2)} MB` : 'N/A',
-            supervisor: report.supervisor_name || currentUser.name,
-            department: report.department || 'Informatique',
-            keywords: report.keywords || [],
-            abstract: report.abstract || 'Aucun résumé disponible.',
-            company: report.company || 'N/A',
-            duration: report.duration || 'N/A',
-            pdfUrl: report.pdf_url || report.file_url || null
-          });
+      // 🔥 ADD THESE DEBUG LOGS
+      console.log('=== REPORT API RESPONSE ===');
+      console.log('Full Response:', response);
+      console.log('Success:', response.success);
+      console.log('Report Data:', response.data);
+      console.log('File URL:', response.data?.file_url);
+      console.log('========================');
 
-          setComments(
-            Array.isArray(report.comments)
-              ? report.comments.map(c => ({
-                  id: c.id,
-                  content: c.content,
-                  author: c.teacher_name || 'Enseignant',
-                  date: new Date(c.created_at),
-                  updatedAt: c.updated_at ? new Date(c.updated_at) : null
-                }))
-              : []
-          );
-
-          setValidationHistory(
-            Array.isArray(report.validation_history)
-              ? report.validation_history.map(h => ({
-                  id: h.id,
-                  action: h.action,
-                  message: h.message || '',
-                  teacher: h.teacher_name || 'Enseignant',
-                  date: new Date(h.created_at)
-                }))
-              : []
-          );
-
-        } else {
-          throw new Error('Rapport non trouvé');
-        }
-      } catch (err) {
-        console.error('Erreur chargement:', err);
-        setError('Impossible de charger le rapport. Il a peut-être été supprimé.');
-      } finally {
-        setLoading(false);
+      if (!response.success || !response.data) {
+        throw new Error('Rapport non trouvé ou accès refusé');
       }
-    };
 
-    fetchReportData();
-  }, [reportId, navigate]);
+      const report = response.data;
 
-  // Calcul du progrès
+      setReportData({
+        id: report.id,
+        title: report.title || 'Sans titre',
+        studentName: `${report.author_first_name || ''} ${report.author_last_name || ''}`.trim(),
+        studentEmail: report.student_email || 'N/A',
+        specialty: report.specialty || 'Non spécifié',
+        submissionDate: new Date(report.submission_date),
+        fileSize: report.file_size ? `${(report.file_size / 1024 / 1024).toFixed(2)} MB` : 'N/A',
+        file_url: report.file_url  // Make sure this is being set
+      });
+
+      // 🔥 LOG WHAT WE'RE SETTING
+      console.log('📋 SET REPORT DATA:', {
+        id: report.id,
+        title: report.title,
+        file_url: report.file_url
+      });
+
+      setComments(Array.isArray(report.comments) ? report.comments.map(c => ({
+        id: c.id,
+        content: c.content,
+        author: c.teacher_name || 'Enseignant',
+        date: new Date(c.created_at),
+        updatedAt: c.updated_at ? new Date(c.updated_at) : null
+      })) : []);
+
+      setValidationHistory(Array.isArray(report.validation_history) ? report.validation_history.map(h => ({
+        id: h.id,
+        action: h.action,
+        message: h.message || '',
+        teacher: h.teacher_name || 'Enseignant',
+        date: new Date(h.created_at)
+      })) : []);
+
+    } catch (err) {
+      console.error('❌ Error loading report:', err);
+      setError(err.message || 'Impossible de charger le rapport');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchReport();
+}, [reportId, navigate, API_BASE]);
+
   const getChecklistProgress = () => {
     const sections = Object.values(checklistData);
     if (sections.length === 0) return 0;
@@ -149,22 +133,7 @@ const ReportValidationInterface = () => {
   const checklistProgress = getChecklistProgress();
   const hasComments = comments.length > 0;
 
-  // Actions
-  const handleValidate = async (data) => {
-    await teacherReportsAPI.validateReport(reportId, { decision: 'validated', comments: data.comments });
-    navigate('/teacher/dashboard', { state: { message: 'Rapport validé !', type: 'success' } });
-  };
-
-  const handleReject = async (data) => {
-    await teacherReportsAPI.validateReport(reportId, { decision: 'rejected', comments: data.comments });
-    navigate('/teacher/dashboard', { state: { message: 'Rapport rejeté', type: 'error' } });
-  };
-
-  const handleRequestRevision = async (data) => {
-    await teacherReportsAPI.validateReport(reportId, { decision: 'revision_requested', comments: data.notes });
-    navigate('/teacher/dashboard', { state: { message: 'Révision demandée', type: 'info' } });
-  };
-
+  // Handlers
   const handleAddComment = async (content) => {
     const res = await teacherReportsAPI.addComment(reportId, content);
     if (res.success) {
@@ -182,15 +151,12 @@ const ReportValidationInterface = () => {
     setComments(prev => prev.filter(c => c.id !== id));
   };
 
-  const handleChecklistUpdate = (data) => setChecklistData(data);
-
-  // Rendu
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
-          <p className="mt-4 text-text-secondary">Chargement du rapport...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Chargement du rapport...</p>
         </div>
       </div>
     );
@@ -198,99 +164,155 @@ const ReportValidationInterface = () => {
 
   if (error || !reportData) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md p-8">
-          <Icon name="AlertCircle" size={64} className="mx-auto text-red-500 mb-4" />
-          <h2 className="text-2xl font-bold text-text-primary mb-3">Erreur</h2>
-          <p className="text-text-secondary mb-6">{error || 'Rapport introuvable'}</p>
-          <Button onClick={() => navigate('/teacher/dashboard')} iconName="ArrowLeft">
-            Retour au tableau de bord
-          </Button>
+          <h2 className="text-2xl font-bold mb-4">Erreur</h2>
+          <p className="text-gray-600 mb-6">{error || 'Rapport introuvable'}</p>
+          <Button onClick={() => navigate('/teacher/dashboard')}>Retour au tableau de bord</Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Ton beau rendu ici (inchangé) */}
-      <NavigationHeader isCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} userRole={currentUser.role} userName={currentUser.name} institutionName="ESPRIM" />
-      <RoleBasedSidebar isCollapsed={sidebarCollapsed} isOpen={sidebarOpen} onToggle={() => { setSidebarCollapsed(!sidebarCollapsed); setSidebarOpen(false); }} userRole={currentUser.role} />
-
-      <main className={`pt-16 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
-        <div className="p-6">
-          <BreadcrumbTrail customBreadcrumbs={[{ label: 'Accueil', path: '/' }, { label: 'Tableau de bord', path: '/teacher/dashboard' }, { label: 'Validation du rapport', path: null }]} />
-
-          <div className="mb-6 flex justify-between items-start">
-            <div>
-              <h1 className="text-3xl font-bold text-text-primary mb-2">Validation du Rapport</h1>
-              <p className="text-text-secondary">Révision du projet de fin d'études</p>
-            </div>
-            <Button variant="ghost" onClick={() => navigate('/teacher/dashboard')} iconName="ArrowLeft">Retour</Button>
-          </div>
-
-          <div className="bg-surface border border-border rounded-lg p-6 mb-6 shadow-sm">
-            <div className="flex justify-between items-start">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header identique */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center space-x-4">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden p-2 rounded-lg hover:bg-gray-100">
+              <Menu size={24} />
+            </button>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
+                <FileText className="text-white" size={24} />
+              </div>
               <div>
-                <h2 className="text-2xl font-semibold text-text-primary mb-3">{reportData.title}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div><span className="font-medium">Étudiant :</span> {reportData.studentName}</div>
-                  <div><span className="font-medium">Spécialité :</span> {reportData.specialty}</div>
-                  <div><span className="font-medium">Soumis le :</span> {reportData.submissionDate.toLocaleDateString('fr-FR')}</div>
-                  <div><span className="font-medium">Taille :</span> {reportData.fileSize}</div>
-                </div>
+                <h1 className="text-xl font-semibold text-gray-900">ESPRIM</h1>
+                <p className="text-sm text-gray-500">Virtual Library</p>
               </div>
-              <Icon name="FileText" size={48} className="text-accent opacity-20" />
             </div>
           </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <div className="xl:col-span-2">
-              <PDFViewer reportData={reportData} currentPage={currentPage} totalPages={totalPages} zoomLevel={zoomLevel} searchTerm={searchTerm}
-                onPageChange={setCurrentPage} onZoomChange={setZoomLevel} onSearchChange={setSearchTerm} reviewerInfo={currentUser} />
-            </div>
-
-            <div className="space-y-6">
-              <div className="bg-surface border border-border rounded-lg shadow-sm">
-                <div className="flex border-b">
-                  <button onClick={() => setActiveTab('validation')} className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === 'validation' ? 'bg-accent text-white' : 'text-text-secondary'}`}>Validation</button>
-                  <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === 'history' ? 'bg-accent text-white' : 'text-text-secondary'}`}>Historique</button>
-                </div>
-                <div className="p-4">
-                  {activeTab === 'validation' ? (
-                    <div className="grid grid-cols-2 gap-4 text-center">
-                      <div className="bg-muted/50 rounded-lg p-4">
-                        <div className="text-3xl font-bold text-accent">{checklistProgress}%</div>
-                        <div className="text-xs text-text-secondary">Checklist</div>
-                      </div>
-                      <div className="bg-muted/50 rounded-lg p-4">
-                        <div className="text-3xl font-bold text-accent">{comments.length}</div>
-                        <div className="text-xs text-text-secondary">Commentaires</div>
-                      </div>
-                    </div>
-                  ) : (
-                    <ValidationHistory reportData={reportData} historyData={validationHistory} />
-                  )}
-                </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-600">Session active</span>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-medium">{currentUser.initials}</span>
               </div>
-
-              <ValidationActions
-                reportData={reportData}
-                onValidate={handleValidate}
-                onReject={handleReject}
-                onRequestRevision={handleRequestRevision}
-                checklistProgress={checklistProgress}
-                hasComments={hasComments}
-              />
+              <div className="hidden md:block">
+                <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
+                <p className="text-xs text-gray-500">{currentUser.role}</p>
+              </div>
             </div>
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <ValidationChecklist reportData={reportData} onChecklistUpdate={handleChecklistUpdate} checklistData={checklistData} />
-            <CommentSystem reportData={reportData} comments={comments} onAddComment={handleAddComment} onUpdateComment={handleUpdateComment} onDeleteComment={handleDeleteComment} currentUser={currentUser} />
           </div>
         </div>
-      </main>
+      </header>
+
+      <div className="flex">
+        {/* Sidebar identique */}
+        <aside className={`fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+          <div className="flex flex-col h-full pt-20 lg:pt-4">
+            <nav className="flex-1 px-4 space-y-2">
+              <button
+                onClick={() => navigate('/teacher/dashboard')}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${location.pathname === '/teacher/dashboard' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+              >
+                <Grid3x3 size={20} />
+                <span className="font-medium">Tableau de Bord</span>
+              </button>
+              <button
+                onClick={() => navigate('/teacher/library')}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${location.pathname.includes('/library') ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+              >
+                <Library size={20} />
+                <span className="font-medium">Bibliothèque</span>
+              </button>
+            </nav>
+          </div>
+        </aside>
+
+        {sidebarOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+
+        <main className="flex-1 pt-16">
+          <div className="p-6">
+            <BreadcrumbTrail customBreadcrumbs={[
+              { label: 'Accueil', path: '/' },
+              { label: 'Tableau de bord', path: '/teacher/dashboard' },
+              { label: 'Validation du rapport', path: null }
+            ]} />
+
+            <div className="mb-6 flex justify-between items-start">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Validation du Rapport</h1>
+                <p className="text-gray-600">Révision du projet de fin d'études</p>
+              </div>
+              <Button variant="ghost" onClick={() => navigate('/teacher/dashboard')}>Retour</Button>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-2xl font-semibold mb-3">{reportData.title}</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div><span className="font-medium">Étudiant :</span> {reportData.studentName}</div>
+                    <div><span className="font-medium">Spécialité :</span> {reportData.specialty}</div>
+                    <div><span className="font-medium">Soumis le :</span> {reportData.submissionDate.toLocaleDateString('fr-FR')}</div>
+                    <div><span className="font-medium">Taille :</span> {reportData.fileSize}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <PDFViewer
+                  reportData={reportData}
+                  reviewerInfo={currentUser}
+                />
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-white border border-gray-200 rounded-lg">
+                  <div className="flex border-b">
+                    <button onClick={() => setActiveTab('validation')} className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === 'validation' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}>Validation</button>
+                    <button onClick={() => setActiveTab('history')} className={`flex-1 py-3 px-4 text-sm font-medium ${activeTab === 'history' ? 'bg-blue-600 text-white' : 'text-gray-700'}`}>Historique</button>
+                  </div>
+                  <div className="p-4">
+                    {activeTab === 'validation' ? (
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="text-3xl font-bold text-blue-600">{checklistProgress}%</div>
+                          <div className="text-xs text-gray-600">Checklist</div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="text-3xl font-bold text-blue-600">{comments.length}</div>
+                          <div className="text-xs text-gray-600">Commentaires</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <ValidationHistory reportData={reportData} historyData={validationHistory} />
+                    )}
+                  </div>
+                </div>
+
+                <ValidationActions
+                  reportData={reportData}
+                  onValidate={() => teacherReportsAPI.validateReport(reportId, { decision: 'validated' }).then(() => navigate('/teacher/dashboard'))}
+                  onReject={() => teacherReportsAPI.validateReport(reportId, { decision: 'rejected' }).then(() => navigate('/teacher/dashboard'))}
+                  onRequestRevision={() => teacherReportsAPI.validateReport(reportId, { decision: 'revision_requested' }).then(() => navigate('/teacher/dashboard'))}
+                  checklistProgress={checklistProgress}
+                  hasComments={hasComments}
+                />
+              </div>
+            </div>
+
+            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <ValidationChecklist reportData={reportData} onChecklistUpdate={setChecklistData} checklistData={checklistData} />
+              <CommentSystem reportData={reportData} comments={comments} onAddComment={handleAddComment} onUpdateComment={handleUpdateComment} onDeleteComment={handleDeleteComment} currentUser={currentUser} />
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

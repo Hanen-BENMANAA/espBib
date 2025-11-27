@@ -34,7 +34,7 @@ const ReportsTable = ({ reports, onViewReport, onValidateReport, onRejectReport,
     if (sortConfig?.key) {
       const aValue = a?.[sortConfig?.key];
       const bValue = b?.[sortConfig?.key];
-      
+
       if (sortConfig?.direction === 'asc') {
         return aValue > bValue ? 1 : -1;
       } else {
@@ -84,12 +84,12 @@ const ReportsTable = ({ reports, onViewReport, onValidateReport, onRejectReport,
       className="flex items-center space-x-1 hover:text-primary academic-transition"
     >
       <span>{children}</span>
-      <Icon 
-        name={sortConfig?.key === column 
+      <Icon
+        name={sortConfig?.key === column
           ? (sortConfig?.direction === 'asc' ? 'ChevronUp' : 'ChevronDown')
           : 'ChevronsUpDown'
-        } 
-        size={14} 
+        }
+        size={14}
       />
     </button>
   );
@@ -143,7 +143,7 @@ const ReportsTable = ({ reports, onViewReport, onValidateReport, onRejectReport,
                 <SortButton column="specialty">Spécialité</SortButton>
               </th>
               <th className="text-left p-4 text-sm font-medium text-muted-foreground">
-                <SortButton column="priority">Priorité</SortButton>
+                Statut
               </th>
               <th className="text-center p-4 text-sm font-medium text-muted-foreground">
                 Actions
@@ -261,19 +261,19 @@ const ReportsTable = ({ reports, onViewReport, onValidateReport, onRejectReport,
                 {getPriorityLabel(report?.priority)}
               </span>
             </div>
-            
+
             <div>
               <p className="text-sm font-medium text-foreground line-clamp-2">{report?.title}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {report?.specialty} • {report?.department}
               </p>
             </div>
-            
+
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Soumis le {formatDate(report?.submissionDate)}</span>
               <span>{report?.daysWaiting} jour(s) d'attente</span>
             </div>
-            
+
             <div className="flex items-center space-x-2 pt-2 border-t border-border">
               <Button
                 variant="outline"
