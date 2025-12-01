@@ -1,4 +1,4 @@
-// Routes.jsx - VERSION FINALE 2025 (PRÊTE À L'EMPLOI)
+// Routes.jsx - VERSION ULTIME 2025 (PARFAITE)
 
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -11,9 +11,7 @@ import ReportSubmissionForm from "./pages/report-submission-form";
 import SecurePDFReader from "./pages/secure-pdf-reader";
 import TeacherValidationDashboard from "./pages/teacher-validation-dashboard";
 import AdministrativeDashboard from "./pages/administrative-dashboard";
-
-// AJOUT CRUCIAL : Import de l'interface de validation
-import ReportValidationInterface from "./pages/report-validation-interface";  // VÉRIFIE LE CHEMIN !
+import ReportValidationInterface from "./pages/report-validation-interface";
 
 // 404 PAGE
 const NotFound = () => (
@@ -47,21 +45,19 @@ const NotFound = () => (
   </div>
 );
 
-// PROTECTED ROUTE WITH ROLE
+// PROTECTED ROUTE
 const ProtectedRoute = ({ children, allowedRole }) => {
   const user = getUser();
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (user.role !== allowedRole) {
+  if (!user) return <Navigate to="/login" replace />;
+  
+  if (allowedRole && user.role !== allowedRole) {
     const redirectMap = {
       student: "/student/dashboard",
       teacher: "/teacher/dashboard",
       admin: "/admin/dashboard"
     };
-    return <Navigate to={redirectMap[user.role] ?? "/login"} replace />;
+    return <Navigate to={redirectMap[user.role] || "/login"} replace />;
   }
 
   return children;
@@ -95,10 +91,7 @@ export default function AppRoutes() {
           }
         />
 
-        <Route 
-          path="/report-submission-form"
-          element={<Navigate to="/student/submit-report" replace />}
-        />
+        <Route path="/report-submission-form" element={<Navigate to="/student/submit-report" replace />} />
 
         <Route 
           path="/student/view-report/:id"
@@ -109,14 +102,7 @@ export default function AppRoutes() {
           }
         />
 
-        <Route 
-          path="/secure-pdf-reader"
-          element={
-            <ProtectedRoute allowedRole="student">
-              <SecurePDFReader />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/secure-pdf-reader" element={<Navigate to="/student/dashboard" replace />} />
 
         {/* TEACHER ROUTES */}
         <Route 
@@ -128,21 +114,16 @@ export default function AppRoutes() {
           }
         />
 
-      {/* INTERFACE DE VALIDATION D'UN RAPPORT - AVEC ID DANS L'URL */}
-<Route 
-  path="/report-validation-interface/:reportId"
-  element={
-    <ProtectedRoute allowedRole="teacher">
-      <ReportValidationInterface />
-    </ProtectedRoute>
-  } 
-/>
-
-        {/* Compatibilité ancienne URL */}
         <Route 
-          path="/teacher-validation-dashboard"
-          element={<Navigate to="/teacher/dashboard" replace />}
+          path="/report-validation-interface/:reportId"
+          element={
+            <ProtectedRoute allowedRole="teacher">
+              <ReportValidationInterface />
+            </ProtectedRoute>
+          } 
         />
+
+        <Route path="/teacher-validation-dashboard" element={<Navigate to="/teacher/dashboard" replace />} />
 
         {/* ADMIN ROUTES */}
         <Route 
@@ -154,7 +135,7 @@ export default function AppRoutes() {
           }
         />
 
-        {/* 404 - Doit être en dernier */}
+        {/* 404 */}
         <Route path="*" element={<NotFound />} />
 
       </Routes>

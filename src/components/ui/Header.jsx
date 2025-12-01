@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
 import Button from './Button';
-
+import NotificationPanel from './../notifications/NotificationPanel';
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -139,12 +139,9 @@ const Header = () => {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
-            {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Icon name="Bell" size={20} />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full"></span>
-            </Button>
-
+         <div className="relative">
+        <NotificationPanel />
+</div>
             {/* User Profile */}
             <div className="relative">
               <Button

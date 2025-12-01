@@ -4,7 +4,7 @@ import QuickActionPanel from '../../components/ui/QuickActionPanel';
 import StudentStatsOverview from './components/StudentStatsOverview';
 import SubmissionHistoryTable from './components/SubmissionHistoryTable';
 import StatusIndicatorTrial from '../../components/ui/StatusIndicatorBanner';
-
+import NotificationPanel from '../../components/notifications/NotificationPanel';
 const StudentDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +64,8 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+
+    {/* ←←← END OF NOTIFICATION BELL */}
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-2">Tableau de Bord Étudiant</h1>
         <p className="text-muted-foreground mb-8">
@@ -86,9 +88,7 @@ useEffect(() => {
               <SubmissionHistoryTable submissions={safeSubmissions} />
             )}
           </div>
-          <div>
-            <QuickActionPanel />
-          </div>
+
         </div>
       </main>
     </div>

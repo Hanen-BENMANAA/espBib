@@ -8,7 +8,7 @@ import { Checkbox } from '../../../components/ui/Checkbox';
 const WatermarkCustomizationSection = ({ onSave }) => {
   const [watermarkSettings, setWatermarkSettings] = useState({
     enabled: true,
-    opacity: 15,
+    opacity: 15,  
     position: 'diagonal',
     fontSize: 12,
     color: '#64748B',

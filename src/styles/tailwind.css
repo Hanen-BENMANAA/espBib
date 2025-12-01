@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;500&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,51 +9,51 @@
 @layer base {
   :root {
     /* Core Colors */
-    --color-background: #FAFBFC; /* gray-50 */
-    --color-foreground: #1F2937; /* gray-800 */
-    --color-border: rgba(148, 163, 184, 0.2); /* slate-400 with opacity */
-    --color-input: #FFFFFF; /* white */
-    --color-ring: rgb(201, 12, 15); /* blue-800 */
+    --color-background: #FAFBFC;
+    --color-foreground: #1F2937;
+    --color-border: rgba(148, 163, 184, 0.2);
+    --color-input: #FFFFFF;
+    --color-ring: rgb(201, 12, 15);
     
     /* Card Colors */
-    --color-card: #FFFFFF; /* white */
-    --color-card-foreground: #1F2937; /* gray-800 */
+    --color-card: #FFFFFF;
+    --color-card-foreground: #1F2937;
     
     /* Popover Colors */
-    --color-popover: #FFFFFF; /* white */
-    --color-popover-foreground: #1F2937; /* gray-800 */
+    --color-popover: #FFFFFF;
+    --color-popover-foreground: #1F2937;
     
     /* Muted Colors */
-    --color-muted: #F8FAFC; /* slate-50 */
-    --color-muted-foreground: #6B7280; /* gray-500 */
+    --color-muted: #F8FAFC;
+    --color-muted-foreground: #6B7280;
     
     /* Primary Colors */
-    --color-primary: rgb(201, 12, 15); /* blue-800 */
-    --color-primary-foreground: #FFFFFF; /* white */
+    --color-primary: rgb(201, 12, 15);
+    --color-primary-foreground: #FFFFFF;
     
     /* Secondary Colors */
-    --color-secondary: #64748B; /* slate-500 */
-    --color-secondary-foreground: #FFFFFF; /* white */
+    --color-secondary: #64748B;
+    --color-secondary-foreground: #FFFFFF;
     
     /* Destructive Colors */
-    --color-destructive: #DC2626; /* red-600 */
-    --color-destructive-foreground: #FFFFFF; /* white */
+    --color-destructive: #DC2626;
+    --color-destructive-foreground: #FFFFFF;
     
     /* Accent Colors */
-    --color-accent: rgba(37, 150, 190, 1); /* custom blue */
-    --color-accent-foreground: #1F2937; /* gray-800 */
+    --color-accent: rgba(37, 150, 190, 1);
+    --color-accent-foreground: #1F2937;
     
     /* Success Colors */
-    --color-success: #059669; /* emerald-600 */
-    --color-success-foreground: #FFFFFF; /* white */
+    --color-success: #059669;
+    --color-success-foreground: #FFFFFF;
     
     /* Warning Colors */
-    --color-warning: #D97706; /* amber-600 */
-    --color-warning-foreground: #FFFFFF; /* white */
+    --color-warning: #D97706;
+    --color-warning-foreground: #FFFFFF;
     
     /* Error Colors */
-    --color-error: #DC2626; /* red-600 */
-    --color-error-foreground: #FFFFFF; /* white */
+    --color-error: #DC2626;
+    --color-error-foreground: #FFFFFF;
   }
 
   * {
@@ -74,21 +75,10 @@
 }
 
 @layer components {
-  .academic-shadow-sm {
-    box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  .academic-shadow-md {
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  .academic-shadow-lg {
-    box-shadow: 0px 10px 15px rgba(0, 0, 0, 0.1);
-  }
-
-  .academic-shadow-xl {
-    box-shadow: 0px 20px 25px rgba(0, 0, 0, 0.15);
-  }
+  .academic-shadow-sm { box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.1); }
+  .academic-shadow-md { box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); }
+  .academic-shadow-lg { box-shadow: 0px 10px 15px rgba(0, 0, 0, 0.1); }
+  .academic-shadow-xl { box-shadow: 0px 20px 25px rgba(0, 0, 0, 0.15); }
 
   .academic-transition {
     transition: all 200ms ease-out;
@@ -102,6 +92,80 @@
     .academic-transition,
     .academic-transition-layout {
       transition: none;
+    }
+  }
+}
+
+/* ——————— STYLES DU MODAL DE NOTIFICATION (ULTRA BEAU) ——————— */
+@layer utilities {
+  .modal-backdrop {
+    @apply fixed inset-0 z-[1000] bg-black/50 backdrop-blur-sm;
+    animation: fadeIn 200ms cubic-bezier(0, 0, 0.2, 1);
+  }
+
+  .modal-container {
+    @apply fixed inset-0 z-[1010] flex items-center justify-center p-4;
+  }
+
+  .modal-content {
+    @apply relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl overflow-hidden;
+    animation: slideUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .modal-header {
+    @apply relative overflow-hidden rounded-t-2xl p-8 text-center;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  }
+
+  .modal-header::before {
+    content: '';
+    @apply absolute inset-0 opacity-20;
+    background: radial-gradient(circle at top right, white 0%, transparent 70%);
+  }
+
+  .modal-body {
+    @apply p-8 max-h-[60vh] overflow-y-auto;
+  }
+
+  .modal-footer {
+    @apply p-6 border-t border-border bg-gray-100/30;
+  }
+
+  .quick-action-btn {
+    @apply px-8 py-4 rounded-xl font-bold text-lg transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg;
+  }
+
+  .quick-action-primary {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    @apply text-white;
+  }
+
+  .quick-action-outline {
+    @apply border-2 border-primary text-primary bg-transparent hover:bg-primary hover:text-white;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(50px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .modal-content {
+      @apply max-w-full m-4;
+    }
+    .quick-action-btn {
+      @apply w-full py-5 text-base;
     }
   }
 }

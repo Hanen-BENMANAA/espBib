@@ -1,5 +1,3 @@
-// src/services/api.js - VERSION FINALE 2025 (COMPLETE & READY)
-
 import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -9,7 +7,6 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Interceptor : ajoute le token automatiquement
 api.interceptors.request.use(config => {
   const session = JSON.parse(localStorage.getItem('esprim_session') || '{}');
   if (session.token) {
@@ -18,7 +15,6 @@ api.interceptors.request.use(config => {
   return config;
 });
 
-// Interceptor : logout auto sur 401
 api.interceptors.response.use(
   response => response,
   error => {
@@ -30,9 +26,6 @@ api.interceptors.response.use(
   }
 );
 
-// ============================================================================
-// AUTH API
-// ============================================================================
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials).then(r => r.data),
   logout: () => {
@@ -41,9 +34,6 @@ export const authAPI = {
   }
 };
 
-// ============================================================================
-// STUDENT REPORTS API
-// ============================================================================
 export const studentReportsAPI = {
   submitReport: (formData) =>
     api.post('/reports/submit', formData, {
@@ -55,23 +45,19 @@ export const studentReportsAPI = {
   getReportById: (id) => api.get(`/reports/${id}`).then(r => r.data)
 };
 
-// ============================================================================
-// TEACHER REPORTS API - FULLY UPDATED
-// ============================================================================
 export const teacherReportsAPI = {
-  // Dashboard data
   getAssignedReports: () => api.get('/reports/assigned-to-me').then(r => r.data),
   getPendingReports: () => api.get('/reports/pending-for-teacher').then(r => r.data),
   getTeacherStats: () => api.get('/reports/teacher-stats').then(r => r.data),
 
-  // Single report with comments + history
   getReportById: (id) => api.get(`/reports/${id}`).then(r => r.data),
 
-  // Validation actions
   validateReport: (reportId, { decision, comments = '' }) =>
     api.put(`/reports/${reportId}/validate`, { decision, comments }).then(r => r.data),
 
-  // Comments system
+  updateChecklist: (reportId, checklist) =>
+    api.put(`/reports/${reportId}/checklist`, { checklist }).then(r => r.data),
+
   addComment: (reportId, content) =>
     api.post(`/reports/${reportId}/comments`, { content }).then(r => r.data),
 
@@ -82,30 +68,39 @@ export const teacherReportsAPI = {
     api.delete(`/comments/${commentId}`).then(r => r.data),
 };
 
-// ============================================================================
-// ADMIN REPORTS API
-// ============================================================================
+export const notificationsAPI = {
+  getMyNotifications: () => api.get('/notifications').then(r => r.data),
+
+  getUnreadCount: () => api.get('/notifications/unread-count').then(r => r.data),
+
+  markAsRead: (notificationId) =>
+    api.put(`/notifications/${notificationId}/read`).then(r => r.data),
+
+  markAllAsRead: () =>
+    api.put('/notifications/mark-all-read').then(r => r.data),
+
+  deleteNotification: (notificationId) =>
+    api.delete(`/notifications/${notificationId}`).then(r => r.data),
+};
+
 export const adminReportsAPI = {
   getAllReports: () => api.get('/reports/all').then(r => r.data),
   getSystemStats: () => api.get('/reports/admin-stats').then(r => r.data)
 };
 
-// ============================================================================
-// LEGACY EXPORTS (pour compatibilité avec ton ancien code)
-// ============================================================================
+export const getMyNotifications = () => notificationsAPI.getMyNotifications();
+export const getUnreadCount = () => notificationsAPI.getUnreadCount();
+export const markNotificationAsRead = (id) => notificationsAPI.markAsRead(id);
+
 export const getMySubmissions = () => studentReportsAPI.getMySubmissions();
 export const getPendingReports = () => teacherReportsAPI.getPendingReports();
 export const getTeacherStats = () => teacherReportsAPI.getTeacherStats();
 export const getAssignedReports = () => teacherReportsAPI.getAssignedReports();
 
-// Ancienne signature → redirigée vers la nouvelle (plus claire)
 export const validateReport = (id, decision, comments = '') =>
   teacherReportsAPI.validateReport(id, { decision, comments });
 
-// Pour les étudiants
 export const submitReport = (formData) => studentReportsAPI.submitReport(formData);
-
-// Utilisé dans ReportValidationInterface
 export const getReportById = (id) => teacherReportsAPI.getReportById(id);
 
 export default api;
