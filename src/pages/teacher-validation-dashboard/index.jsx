@@ -4,6 +4,7 @@ import { BarChart3, Clock, CheckCircle, AlertTriangle, XCircle, Eye, MessageSqua
 
 // ✅ Import the API service
 import { teacherReportsAPI } from '../../services/api';
+import TeacherNotificationPanel from '../../components/notifications/TeacherNotificationPanel';
 
 const TeacherValidationDashboard = () => {
   const navigate = useNavigate();
@@ -210,6 +211,7 @@ const TeacherValidationDashboard = () => {
               </div>
             </div>
           </div>
+          <TeacherNotificationPanel />
 
           <div className="flex items-center space-x-4">
             <span className="text-sm text-gray-600">Session active</span>

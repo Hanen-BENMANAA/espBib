@@ -1,4 +1,4 @@
-// backend/src/controllers/report.controller.js - FIXED WITH CHECKLIST
+// backend/src/controllers/report.controller.js - COMPLETE FIXED VERSION
 
 const db = require('../db');
 const path = require('path');
@@ -23,6 +23,8 @@ async function submit(req, res, next) {
       allowPublicAccess, isConfidential, checklist
     } = req.body;
 
+    console.log('📝 Submit request:', { userId, title, supervisor, coSupervisor });
+
     if (!title?.trim() || !authorFirstName?.trim() || !authorLastName?.trim()) {
       return res.status(400).json({ 
         success: false, 
@@ -42,6 +44,7 @@ async function submit(req, res, next) {
         [supervisor.trim()]
       );
       supervisorId = resSup.rows[0]?.id || null;
+      console.log('🔍 Looking for supervisor:', supervisor.trim(), '→ Found ID:', supervisorId);
     }
 
     if (coSupervisor?.trim()) {
@@ -53,6 +56,7 @@ async function submit(req, res, next) {
         [coSupervisor.trim()]
       );
       coSupervisorId = resCo.rows[0]?.id || null;
+      console.log('🔍 Looking for co-supervisor:', coSupervisor.trim(), '→ Found ID:', coSupervisorId);
     }
 
     const fileName = req.file.filename;
@@ -84,12 +88,65 @@ async function submit(req, res, next) {
       ]
     );
 
-    console.log('✅ Report submitted! ID:', result.rows[0].id);
+    const newReport = result.rows[0];
+    console.log('✅ Report created:', newReport.id);
+
+    // Get student name
+    const studentName = `${authorFirstName.trim()} ${authorLastName.trim()}`;
+    console.log('👤 Student name:', studentName);
+
+    // ✅ CREATE ALERT FOR SUPERVISOR in teacher_alerts table
+    if (supervisorId) {
+      try {
+        await db.query(
+          `INSERT INTO teacher_alerts (
+            teacher_id, type, title, message, 
+            related_report_id, student_id, student_name, read, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW())`,
+          [
+            supervisorId,
+            'new_report_submitted',
+            'Nouveau rapport soumis',
+            `${studentName} a soumis un nouveau rapport: "${title.trim()}"`,
+            newReport.id,
+            userId,
+            studentName
+          ]
+        );
+        console.log(`✅ Alert sent to supervisor ${supervisorId}`);
+      } catch (alertErr) {
+        console.error('❌ Error creating supervisor alert:', alertErr);
+      }
+    }
+
+    // ✅ CREATE ALERT FOR CO-SUPERVISOR in teacher_alerts table
+    if (coSupervisorId && coSupervisorId !== 'null' && coSupervisorId !== '') {
+      try {
+        await db.query(
+          `INSERT INTO teacher_alerts (
+            teacher_id, type, title, message, 
+            related_report_id, student_id, student_name, read, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW())`,
+          [
+            coSupervisorId,
+            'new_report_submitted',
+            'Nouveau rapport soumis',
+            `${studentName} a soumis un nouveau rapport: "${title.trim()}"`,
+            newReport.id,
+            userId,
+            studentName
+          ]
+        );
+        console.log(`✅ Alert sent to co-supervisor ${coSupervisorId}`);
+      } catch (alertErr) {
+        console.error('❌ Error creating co-supervisor alert:', alertErr);
+      }
+    }
 
     return res.status(201).json({
       success: true,
       message: 'Report submitted successfully!',
-      data: result.rows[0]
+      data: newReport
     });
 
   } catch (err) {
@@ -205,7 +262,6 @@ async function validateReport(req, res, next) {
   try {
     await db.query('BEGIN');
 
-    // 1. Update report status
     const updateResult = await db.query(
       `UPDATE reports 
        SET status = $1, 
@@ -227,7 +283,6 @@ async function validateReport(req, res, next) {
 
     const report = updateResult.rows[0];
 
-    // 2. Get teacher info
     const teacherResult = await db.query(
       `SELECT first_name, last_name, email FROM users WHERE id = $1`,
       [teacherId]
@@ -235,7 +290,6 @@ async function validateReport(req, res, next) {
     const teacher = teacherResult.rows[0];
     const teacherName = `${teacher.first_name} ${teacher.last_name}`;
 
-    // 3. Record in validation history (report_validations table)
     await db.query(
       `INSERT INTO report_validations (report_id, teacher_id, action, message)
        VALUES ($1, $2, $3, $4)`,
@@ -243,7 +297,6 @@ async function validateReport(req, res, next) {
     );
     console.log('✅ Validation history recorded');
 
-    // 4. ✨ NEW: Also save as a comment (report_comments table) if comments exist
     if (comments?.trim()) {
       await db.query(
         `INSERT INTO report_comments (report_id, teacher_id, content)
@@ -253,7 +306,6 @@ async function validateReport(req, res, next) {
       console.log('✅ Comment saved to report_comments');
     }
 
-    // 5. Get student info for notification
     const studentResult = await db.query(
       `SELECT u.id, u.email, u.first_name, u.last_name
        FROM users u
@@ -262,14 +314,13 @@ async function validateReport(req, res, next) {
     );
     const student = studentResult.rows[0];
 
-    // 6. ✨ NEW: Create notification for student
     await db.query(
       `INSERT INTO notifications (
         user_id, type, title, message, related_report_id, created_at, read
       ) VALUES ($1, $2, $3, $4, $5, NOW(), false)`,
       [
         student.id,
-        decision, // 'validated', 'rejected', 'revision_requested'
+        decision,
         `Rapport ${decision === 'validated' ? 'validé' : decision === 'rejected' ? 'rejeté' : 'en révision'}`,
         `Votre rapport "${report.title}" a été ${
           decision === 'validated' ? 'validé' : 
@@ -284,7 +335,6 @@ async function validateReport(req, res, next) {
     await db.query('COMMIT');
 
     console.log(`✅ Report ${id} ${decision} by ${teacherName}`);
-    console.log(`📧 Student ${student.email} should be notified`);
 
     res.json({ 
       success: true, 
@@ -302,7 +352,6 @@ async function validateReport(req, res, next) {
     await db.query('ROLLBACK');
     console.error('❌ Validation error:', err);
     
-    // If notification table doesn't exist, it's okay - validation still works
     if (err.message?.includes('notifications')) {
       console.log('⚠️ Notifications table not found - continuing without notification');
       return res.json({
@@ -315,7 +364,8 @@ async function validateReport(req, res, next) {
     next(err);
   }
 }
-/* ======================== CHECKLIST UPDATE - CRITICAL FIX ======================== */
+
+/* ======================== CHECKLIST UPDATE ======================== */
 async function updateChecklist(req, res, next) {
   const { id } = req.params;
   const { checklist } = req.body;
@@ -352,7 +402,7 @@ async function updateChecklist(req, res, next) {
   }
 }
 
-/* ======================== COMMENTS - FIXED ======================== */
+/* ======================== COMMENTS ======================== */
 async function addComment(req, res, next) {
   const { id } = req.params;
   const { content, type = 'feedback' } = req.body;
@@ -369,7 +419,6 @@ async function addComment(req, res, next) {
   try {
     await db.query('BEGIN');
 
-    // ✅ FIXED: Use singular table name
     const result = await db.query(
       `INSERT INTO report_comments (report_id, teacher_id, content, comment_type, created_at, updated_at)
        VALUES ($1, $2, $3, $4, NOW(), NOW())
@@ -425,7 +474,6 @@ async function updateComment(req, res, next) {
   }
 
   try {
-    // ✅ FIXED: Use singular table name
     const result = await db.query(
       `UPDATE report_comments 
        SET content = $1, updated_at = NOW()
@@ -462,7 +510,6 @@ async function deleteComment(req, res, next) {
   console.log(`🗑️ Deleting comment ${commentId}`);
 
   try {
-    // ✅ FIXED: Use singular table name
     const commentResult = await db.query(
       `SELECT report_id FROM report_comments WHERE id = $1 AND teacher_id = $2`,
       [commentId, req.user.id]
@@ -572,10 +619,9 @@ module.exports = {
   getPendingReports,
   getTeacherStats,
   validateReport,
-  updateChecklist,  // ✅ CRITICAL: This was missing!
+  updateChecklist,
   addComment,
   updateComment,
   deleteComment,
   getReportById
 };
-
