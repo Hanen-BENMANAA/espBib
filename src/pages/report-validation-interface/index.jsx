@@ -12,6 +12,7 @@ import ValidationChecklist from './components/ValidationChecklist';
 import CommentSystem from './components/CommentSystem';
 import ValidationActions from './components/ValidationActions';
 import ValidationHistory from './components/ValidationHistory';
+import TeacherNotificationPanel from '../../components/notifications/TeacherNotificationPanel';
 
 import { teacherReportsAPI } from '../../services/api';
 
@@ -251,7 +252,7 @@ const ReportValidationInterface = () => {
                 <span>Enregistrement...</span>
               </span>
             )}
-            <span className="text-sm text-gray-600">Session active</span>
+            <span className="text-sm text-gray-600"><TeacherNotificationPanel /></span>
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                 <span className="text-white text-sm font-medium">{currentUser.initials}</span>
@@ -280,7 +281,7 @@ const ReportValidationInterface = () => {
                 <span className="font-medium">Tableau de Bord</span>
               </button>
               <button
-                onClick={() => navigate('/teacher/library')}
+                onClick={() => navigate('/library')}
                 className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 <Library size={20} />

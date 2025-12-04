@@ -1,5 +1,3 @@
-// Routes.jsx - VERSION ULTIME 2025 (PARFAITE)
-
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { getUser } from "./lib/auth";
@@ -12,6 +10,10 @@ import SecurePDFReader from "./pages/secure-pdf-reader";
 import TeacherValidationDashboard from "./pages/teacher-validation-dashboard";
 import AdministrativeDashboard from "./pages/administrative-dashboard";
 import ReportValidationInterface from "./pages/report-validation-interface";
+import LibraryLayout from './layouts/LibraryLayout';
+import PublicLibraryCatalogContent from './pages/public-library-catalog/PublicLibraryCatalogContent';
+import UserProfilePage from './pages/user-profile';
+import UserSettingsPage from './pages/user-settings';
 
 // 404 PAGE
 const NotFound = () => (
@@ -71,6 +73,25 @@ export default function AppRoutes() {
         {/* PUBLIC */}
         <Route path="/" element={<LoginAuthentication />} />
         <Route path="/login" element={<LoginAuthentication />} />
+
+        {/* PROFILE & SETTINGS - Accessible to all authenticated users */}
+        <Route 
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <UserProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route 
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <UserSettingsPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* STUDENT ROUTES */}
         <Route 
@@ -133,6 +154,16 @@ export default function AppRoutes() {
               <AdministrativeDashboard />
             </ProtectedRoute>
           }
+        />
+
+        {/* LIBRARY - Single route with layout that adapts to role */}
+        <Route 
+          path="/library" 
+          element={
+            <LibraryLayout>
+              <PublicLibraryCatalogContent />
+            </LibraryLayout>
+          } 
         />
 
         {/* 404 */}

@@ -1,4 +1,4 @@
-// backend/server.js - FIXED VERSION 2025
+// backend/server.js - UPDATED WITH USERS ROUTES
 
 require('dotenv').config();
 const express = require('express');
@@ -11,7 +11,8 @@ const fs = require('fs');
 const db = require('./db');
 const authRoutes = require('./routes/auth.routes');
 const reportsRoutes = require('./routes/reports.routes');
-const notificationsRoutes = require('./routes/notifications.routes'); // ✨ NEW
+const notificationsRoutes = require('./routes/notifications.routes');
+const usersRoutes = require('./routes/users.routes'); // ✨ NEW
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,13 +28,12 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "https:"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      frameAncestors: ["http:", "https:"], // allow all
+      frameAncestors: ["http:", "https:"],
     },
   },
   frameguard: false,
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-
 
 app.use(cors({
   origin: '*',
@@ -43,7 +43,7 @@ app.use(cors({
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// ==================== STATIC FILES - FIXED ====================
+// ==================== STATIC FILES ====================
 const uploadsPath = path.join(__dirname, 'uploads');
 
 // Check if uploads directory exists
@@ -100,7 +100,6 @@ app.use('/uploads/*', (req, res) => {
   console.error('  File exists?', fs.existsSync(fullPath));
   
   if (!fs.existsSync(fullPath)) {
-    // Check if parent directory exists
     const dir = path.dirname(fullPath);
     console.error('  Parent directory:', dir);
     console.error('  Parent directory exists?', fs.existsSync(dir));
@@ -129,7 +128,8 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportsRoutes);
-app.use('/api/notifications', notificationsRoutes); // ✨ NEW
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/users', usersRoutes); // ✨ NEW
 
 // 404 for API routes
 app.use('/api/*', (req, res) => {
@@ -142,7 +142,8 @@ app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
   console.log(`📁 Uploads path: ${uploadsPath}`);
   console.log(`📄 Reports path: ${reportsPath}`);
-    console.log(`📧 Notifications system: ACTIVE`); // ✨ NEW
+  console.log(`🔧 Notifications system: ACTIVE`);
+  console.log(`👤 User management: ACTIVE`); // ✨ NEW
   console.log('================================\n');
 });
 

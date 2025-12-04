@@ -28,13 +28,13 @@ const TeacherNotificationDropdown = ({ isOpen, notifications, loading, onClose, 
       ref={dropdownRef}
       className="absolute top-full right-0 mt-2 w-[420px] bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden"
     >
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 text-white">
+<div className="p-4" style={{ backgroundColor: '#f7cdcd', color: 'black' }}>
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-lg flex items-center gap-2">
             <Bell size={20} />
             Nouveaux Rapports
             {unreadNotifications.length > 0 && (
-              <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">
+<span className="px-2 py-0.5 rounded-full text-sm" style={{ backgroundColor: '#00000020', color: 'black' }}>
                 {unreadNotifications.length}
               </span>
             )}
