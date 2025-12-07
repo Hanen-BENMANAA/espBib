@@ -23,8 +23,7 @@ const InstitutionalBranding = () => {
       {/* Institution Description */}
       <div className="space-y-4">
         <h2 className="text-xl font-heading font-semibold text-text-primary">
-          École Supérieure Privée d'Ingénierie et de Management
-        </h2>
+      École Supérieur Privée d'Ingénieurs de Monastir         </h2>
         <p className="text-base font-caption text-text-secondary max-w-md mx-auto leading-relaxed">
           Plateforme sécurisée de gestion documentaire pour les rapports de Projet de Fin d'Études
         </p>
@@ -65,7 +64,7 @@ const InstitutionalBranding = () => {
         <div className="flex items-center justify-center space-x-2">
           <Icon name="Calendar" size={16} className="text-primary" />
           <span className="text-sm font-caption text-primary font-medium">
-            Année Académique 2024-2025
+            Année Académique 2025-2026
           </span>
         </div>
       </div>
