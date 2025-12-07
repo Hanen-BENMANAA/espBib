@@ -88,6 +88,22 @@ export const adminReportsAPI = {
   getSystemStats: () => api.get('/reports/admin-stats').then(r => r.data)
 };
 
+// ✅ NEW: FAVORITES API
+export const favoritesAPI = {
+  // Get user's favorites
+  getMyFavorites: () => api.get('/favorites').then(r => r.data),
+  
+  // Add to favorites
+  addFavorite: (reportId) => api.post('/favorites', { reportId }).then(r => r.data),
+  
+  // Remove from favorites
+  removeFavorite: (reportId) => api.delete(`/favorites/${reportId}`).then(r => r.data),
+  
+  // Check if report is favorited
+  isFavorited: (reportId) => api.get(`/favorites/check/${reportId}`).then(r => r.data),
+};
+
+// Export shortcuts
 export const getMyNotifications = () => notificationsAPI.getMyNotifications();
 export const getUnreadCount = () => notificationsAPI.getUnreadCount();
 export const markNotificationAsRead = (id) => notificationsAPI.markAsRead(id);
@@ -102,5 +118,11 @@ export const validateReport = (id, decision, comments = '') =>
 
 export const submitReport = (formData) => studentReportsAPI.submitReport(formData);
 export const getReportById = (id) => teacherReportsAPI.getReportById(id);
+
+// ✅ NEW: Export favorites functions
+export const getMyFavorites = () => favoritesAPI.getMyFavorites();
+export const addFavorite = (reportId) => favoritesAPI.addFavorite(reportId);
+export const removeFavorite = (reportId) => favoritesAPI.removeFavorite(reportId);
+export const checkIfFavorited = (reportId) => favoritesAPI.isFavorited(reportId);
 
 export default api;

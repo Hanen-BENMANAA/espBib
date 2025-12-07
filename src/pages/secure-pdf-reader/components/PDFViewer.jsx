@@ -1,389 +1,318 @@
+// src/pages/secure-pdf-reader/components/PDFViewer.jsx
+// ✅ COMPLETE VERSION - Using secure streaming route
+
 import React, { useState, useEffect, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
-import SecurityWatermark from './SecurityWatermark';
+import { getToken } from '../../../lib/auth';
+import EnhancedSecurityWatermark from './EnhancedSecurityWatermark';
 
-const PDFViewer = ({ 
-  documentUrl = "/sample-report.pdf",
-  documentTitle = "Développement d'un Système IoT pour la Gestion Énergétique",
-  onSecurityViolation,
-  userInfo
-}) => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(156);
-  const [zoomLevel, setZoomLevel] = useState(100);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [securityAlerts, setSecurityAlerts] = useState([]);
-  const viewerRef = useRef(null);
+const PDFViewer = ({ reportData, userInfo, onSecurityViolation, documentTitle }) => {
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [loadError, setLoadError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [securityAlert, setSecurityAlert] = useState(null);
+  const iframeRef = useRef(null);
+  const alertTimeoutRef = useRef(null);
 
-  // Security monitoring
+  // ✅ FIXED: Use secure streaming route with token
   useEffect(() => {
-    const handleContextMenu = (e) => {
-      e?.preventDefault();
-      logSecurityEvent('right_click_blocked');
-    };
+    const token = getToken();
+    
+    if (!token) {
+      console.error('❌ No authentication token found');
+      setLoadError(true);
+      setIsLoading(false);
+      return;
+    }
 
-    const handleKeyDown = (e) => {
-      // Block common copy shortcuts
-      if ((e?.ctrlKey || e?.metaKey) && ['c', 'a', 's', 'p']?.includes(e?.key?.toLowerCase())) {
-        e?.preventDefault();
-        logSecurityEvent('keyboard_shortcut_blocked', { key: e?.key });
-      }
+    if (reportData?.id) {
+      // ✅ USE SECURE STREAMING ROUTE
+      const backendUrl = 'http://localhost:5000';
+      const streamUrl = `${backendUrl}/api/secure-pdf/view/${reportData.id}?token=${token}`;
       
-      // Block F12, Ctrl+Shift+I (DevTools)
-      if (e?.key === 'F12' || (e?.ctrlKey && e?.shiftKey && e?.key === 'I')) {
-        e?.preventDefault();
-        logSecurityEvent('devtools_attempt');
+      console.log('📄 Using SECURE streaming route');
+      console.log('📋 Report ID:', reportData.id);
+      console.log('🔑 Token present:', !!token);
+      
+      setPdfUrl(streamUrl);
+    } else if (reportData?.file_url) {
+      // ⚠️ Fallback to direct URL (may have CSP issues)
+      const backendUrl = 'http://localhost:5000';
+      const directUrl = `${backendUrl}${reportData.file_url}`;
+      
+      console.warn('⚠️ Using direct file access (may have CSP issues):', directUrl);
+      console.warn('💡 Tip: Pass reportData.id to use streaming route');
+      setPdfUrl(directUrl);
+    } else {
+      console.error('❌ Missing data:', { 
+        hasId: !!reportData?.id,
+        hasFileUrl: !!reportData?.file_url,
+        hasToken: !!token,
+        reportData
+      });
+      setLoadError(true);
+      setIsLoading(false);
+    }
+  }, [reportData]);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 🚨 SHOW RED ALERT BANNER
+  // ═══════════════════════════════════════════════════════════════════
+  const showAlert = (message, type = 'error') => {
+    if (alertTimeoutRef.current) {
+      clearTimeout(alertTimeoutRef.current);
+    }
+
+    setSecurityAlert({ message, type });
+
+    alertTimeoutRef.current = setTimeout(() => {
+      setSecurityAlert(null);
+    }, 3000);
+
+    onSecurityViolation?.({ 
+      type: type, 
+      message: message, 
+      timestamp: new Date() 
+    });
+
+    console.warn(`🚨 BLOCKED: ${message}`);
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 🔒 SECURITY PROTECTIONS
+  // ═══════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const safePrevent = (e) => {
+      const target = e.target;
+      if (!target || typeof target.closest !== 'function') {
+        e.preventDefault();
+        return true;
+      }
+      if (target.closest('.allow-selection, button, input, textarea, a, [contenteditable], details, summary')) {
+        return false;
+      }
+      e.preventDefault();
+      return true;
+    };
+
+    const blockContextMenu = (e) => {
+      if (safePrevent(e)) {
+        showAlert('⚠️ Clic droit désactivé - Document protégé', 'context_menu');
       }
     };
 
-    const handleSelectStart = (e) => {
-      // Allow selection only within search input
-      if (!e?.target?.closest('input[type="text"]')) {
-        e?.preventDefault();
-        logSecurityEvent('text_selection_blocked');
+    const blockDragStart = (e) => {
+      if (safePrevent(e)) {
+        showAlert('⚠️ Glisser-déposer bloqué', 'drag');
       }
     };
 
-    const handlePrint = (e) => {
-      e?.preventDefault();
-      logSecurityEvent('print_blocked');
+    const blockShortcuts = (e) => {
+      const key = e.key.toLowerCase();
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      const shortcuts = {
+        'c': '🚫 Copie bloquée (Ctrl+C)',
+        'a': '🚫 Sélection totale bloquée (Ctrl+A)',
+        's': '🚫 Sauvegarde bloquée (Ctrl+S)',
+        'p': '🚫 Impression bloquée (Ctrl+P)',
+        'u': '🚫 Code source bloqué (Ctrl+U)',
+        'f': '🚫 Recherche bloquée (Ctrl+F)'
+      };
+
+      if (e.key === 'PrintScreen') {
+        e.preventDefault();
+        showAlert('📸 Capture d\'écran détectée', 'screenshot');
+      } else if (ctrl && shortcuts[key]) {
+        e.preventDefault();
+        showAlert(shortcuts[key], `ctrl_${key}`);
+      }
     };
 
-    // Add event listeners
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('selectstart', handleSelectStart);
-    window.addEventListener('beforeprint', handlePrint);
-
-    // Monitor for multiple tabs/windows
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        logSecurityEvent('tab_switch_detected');
+        showAlert('👁️ Changement d\'onglet détecté', 'tab_switch');
       }
     };
 
+    let devtoolsOpen = false;
+    const detectDevTools = () => {
+      if (window.outerWidth - window.innerWidth > 100 || window.outerHeight - window.innerHeight > 100) {
+        if (!devtoolsOpen) {
+          devtoolsOpen = true;
+          showAlert('🔧 Outils de développement détectés', 'devtools');
+        }
+      } else {
+        devtoolsOpen = false;
+      }
+    };
+
+    document.addEventListener('selectstart', safePrevent);
+    document.addEventListener('contextmenu', blockContextMenu);
+    document.addEventListener('dragstart', blockDragStart);
+    document.addEventListener('keydown', blockShortcuts);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    const devToolsInterval = setInterval(detectDevTools, 1000);
 
     return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('selectstart', handleSelectStart);
-      window.removeEventListener('beforeprint', handlePrint);
+      document.removeEventListener('selectstart', safePrevent);
+      document.removeEventListener('contextmenu', blockContextMenu);
+      document.removeEventListener('dragstart', blockDragStart);
+      document.removeEventListener('keydown', blockShortcuts);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  const logSecurityEvent = (eventType, details = {}) => {
-    const event = {
-      type: eventType,
-      timestamp: new Date()?.toISOString(),
-      details,
-      userAgent: navigator.userAgent
-    };
-    
-    setSecurityAlerts(prev => [...prev, event]);
-    
-    if (onSecurityViolation) {
-      onSecurityViolation(event);
-    }
-    
-    console.warn('Security event logged:', event);
-  };
-
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
-
-  const handleZoomChange = (newZoom) => {
-    const clampedZoom = Math.max(50, Math.min(200, newZoom));
-    setZoomLevel(clampedZoom);
-  };
-
-  const handleSearch = async () => {
-    if (!searchTerm?.trim()) return;
-    
-    setIsSearching(true);
-    
-    // Simulate search in PDF content
-    setTimeout(() => {
-      const mockResults = [
-        { page: 15, context: "...système IoT permet de surveiller..." },
-        { page: 23, context: "...gestion énergétique optimisée..." },
-        { page: 45, context: "...capteurs IoT intégrés dans..." },
-        { page: 67, context: "...analyse des données IoT..." }
-      ]?.filter(result => 
-        result?.context?.toLowerCase()?.includes(searchTerm?.toLowerCase())
-      );
+      clearInterval(devToolsInterval);
       
-      setSearchResults(mockResults);
-      setIsSearching(false);
-    }, 1000);
+      if (alertTimeoutRef.current) {
+        clearTimeout(alertTimeoutRef.current);
+      }
+    };
+  }, [onSecurityViolation]);
+
+  const handleIframeLoad = () => {
+    console.log('✅ PDF iframe loaded successfully');
+    setIsLoading(false);
+    setLoadError(false);
+
+    // Try to apply security inside iframe
+    try {
+      const iframeDoc = iframeRef.current?.contentDocument;
+      
+      if (iframeDoc) {
+        // Block shortcuts in iframe
+        iframeDoc.addEventListener('keydown', (e) => {
+          const key = e.key.toLowerCase();
+          const ctrl = e.ctrlKey || e.metaKey;
+          
+          if (ctrl && ['c', 'a', 's', 'p'].includes(key)) {
+            e.preventDefault();
+            showAlert(`🚫 ${key.toUpperCase()} bloqué dans le PDF`, 'iframe');
+          }
+        }, true);
+
+        // Block right-click in iframe
+        iframeDoc.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          showAlert('⚠️ Clic droit bloqué dans le PDF', 'iframe_context');
+        }, true);
+
+        console.log('✅ Security applied to iframe');
+      }
+    } catch (err) {
+      console.log('⚠️ CORS - Parent security active');
+    }
   };
 
-  const goToSearchResult = (page) => {
-    setCurrentPage(page);
-    setShowSearch(false);
+  const handleIframeError = () => {
+    console.error('❌ PDF iframe failed to load');
+    setIsLoading(false);
+    setLoadError(true);
   };
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* PDF Viewer Header */}
-      <div className="bg-card border-b border-border p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-heading font-semibold text-foreground truncate">
-              {documentTitle}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Page {currentPage} sur {totalPages} • Zoom {zoomLevel}%
-            </p>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowSearch(!showSearch)}
-            >
-              <Icon name="Search" size={20} />
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleZoomChange(zoomLevel - 10)}
-              disabled={zoomLevel <= 50}
-            >
-              <Icon name="ZoomOut" size={20} />
-            </Button>
-            
-            <span className="text-sm font-mono text-muted-foreground min-w-[60px] text-center">
-              {zoomLevel}%
-            </span>
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleZoomChange(zoomLevel + 10)}
-              disabled={zoomLevel >= 200}
-            >
-              <Icon name="ZoomIn" size={20} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Search Panel */}
-        {showSearch && (
-          <div className="bg-muted rounded-academic p-3 mb-3">
-            <div className="flex items-center space-x-2 mb-3">
-              <Input
-                type="text"
-                placeholder="Rechercher dans le document..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e?.target?.value)}
-                onKeyPress={(e) => e?.key === 'Enter' && handleSearch()}
-                className="flex-1"
-              />
-              <Button
-                variant="default"
-                onClick={handleSearch}
-                loading={isSearching}
-                iconName="Search"
-              >
-                Rechercher
-              </Button>
-            </div>
-            
-            {searchResults?.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  {searchResults?.length} résultat(s) trouvé(s)
-                </p>
-                <div className="max-h-32 overflow-y-auto space-y-1">
-                  {searchResults?.map((result, index) => (
-                    <button
-                      key={index}
-                      onClick={() => goToSearchResult(result?.page)}
-                      className="w-full text-left p-2 rounded bg-card hover:bg-muted academic-transition"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-foreground">
-                          Page {result?.page}
-                        </span>
-                        <Icon name="ExternalLink" size={14} />
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {result?.context}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Navigation Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage <= 1}
-              iconName="ChevronLeft"
-            >
-              Précédent
-            </Button>
-            
-            <div className="flex items-center space-x-2">
-              <Input
-                type="number"
-                value={currentPage}
-                onChange={(e) => handlePageChange(parseInt(e?.target?.value) || 1)}
-                className="w-20 text-center"
-                min="1"
-                max={totalPages}
-              />
-              <span className="text-sm text-muted-foreground">
-                / {totalPages}
-              </span>
-            </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              iconName="ChevronRight"
-              iconPosition="right"
-            >
-              Suivant
-            </Button>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handlePageChange(1)}
-              disabled={currentPage === 1}
-            >
-              Première page
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handlePageChange(totalPages)}
-              disabled={currentPage === totalPages}
-            >
-              Dernière page
-            </Button>
-          </div>
-        </div>
-      </div>
-      {/* PDF Content Area */}
-      <div className="flex-1 relative overflow-hidden bg-gray-100">
-        <div 
-          ref={viewerRef}
-          className="w-full h-full overflow-auto p-4"
-          style={{ 
-            transform: `scale(${zoomLevel / 100})`,
-            transformOrigin: 'top left'
-          }}
-        >
-          {/* Security Watermark Overlay */}
-          <SecurityWatermark 
-            userInfo={userInfo}
-            documentTitle={documentTitle}
-          />
-          
-          {/* Mock PDF Content */}
-          <div className="max-w-4xl mx-auto bg-white academic-shadow-lg">
-            <div className="p-8 min-h-[1000px]">
-              <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                  {documentTitle}
-                </h1>
-                <p className="text-gray-600">
-                  Projet de Fin d'Études - ESPRIM 2024
-                </p>
-                <p className="text-gray-500 text-sm mt-2">
-                  Présenté par: Ahmed Ben Salem
-                </p>
-                <p className="text-gray-500 text-sm">
-                  Encadré par: Dr. Fatma Gharbi
-                </p>
-              </div>
-
-              <div className="space-y-6 text-gray-800">
-                <section>
-                  <h2 className="text-xl font-semibold mb-3 text-primary">
-                    Résumé
-                  </h2>
-                  <p className="text-justify leading-relaxed">
-                    Ce projet présente le développement d'un système IoT innovant pour la gestion énergétique intelligente dans les bâtiments industriels. L'objectif principal 
-                    est de créer une solution complète permettant la surveillance en temps réel 
-                    de la consommation énergétique et l'optimisation automatique des équipements.
-                  </p>
-                </section>
-
-                <section>
-                  <h2 className="text-xl font-semibold mb-3 text-primary">
-                    1. Introduction
-                  </h2>
-                  <p className="text-justify leading-relaxed mb-4">
-                    La gestion énergétique représente un enjeu majeur dans le contexte actuel 
-                    de transition écologique. Les systèmes IoT offrent des opportunités 
-                    exceptionnelles pour optimiser la consommation d'énergie dans les 
-                    environnements industriels.
-                  </p>
-                  <p className="text-justify leading-relaxed">
-                    Notre approche combine capteurs intelligents, algorithmes d'apprentissage 
-                    automatique et interfaces utilisateur intuitives pour créer un écosystème 
-                    complet de gestion énergétique.
-                  </p>
-                </section>
-
-                <section>
-                  <h2 className="text-xl font-semibold mb-3 text-primary">
-                    2. État de l'art
-                  </h2>
-                  <p className="text-justify leading-relaxed">
-                    Les solutions existantes présentent plusieurs limitations en termes de 
-                    scalabilité et d'interopérabilité. Notre étude comparative révèle des opportunités d'amélioration significatives dans l'intégration des 
-                    protocoles de communication IoT.
-                  </p>
-                </section>
-
-                {/* Page indicator */}
-                <div className="text-center text-gray-400 text-sm mt-12 pt-4 border-t">
-                  Page {currentPage}
-                </div>
+    <div className="relative bg-black rounded-xl overflow-hidden academic-shadow-lg h-full min-h-[800px] flex flex-col">
+      {/* 🚨 RED SECURITY ALERT BANNER - TOP */}
+      {securityAlert && (
+        <div className="absolute top-0 left-0 right-0 z-[100]" style={{
+          animation: 'slideDown 0.3s ease-out'
+        }}>
+          <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-4 shadow-2xl border-b-4 border-red-900 flex items-center gap-4">
+            <div className="flex-shrink-0" style={{ animation: 'pulse 2s infinite' }}>
+              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                <Icon name="ShieldAlert" size={24} className="text-red-600" />
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-      {/* Security Alert Indicator */}
-      {securityAlerts?.length > 0 && (
-        <div className="absolute bottom-4 left-4 bg-error/10 border border-error/20 rounded-academic p-2">
-          <div className="flex items-center space-x-2">
-            <Icon name="Shield" size={16} className="text-error" />
-            <span className="text-xs text-error-foreground">
-              {securityAlerts?.length} événement(s) de sécurité détecté(s)
-            </span>
+            <div className="flex-1">
+              <div className="font-bold text-lg">{securityAlert.message}</div>
+              <div className="text-sm text-red-100 mt-1">
+                ⚠️ Cette action a été enregistrée • Session: {userInfo?.id}
+              </div>
+            </div>
+            <button
+              onClick={() => setSecurityAlert(null)}
+              className="flex-shrink-0 text-white hover:bg-red-800 rounded-full p-2 transition-colors allow-selection"
+            >
+              <Icon name="X" size={20} />
+            </button>
           </div>
         </div>
       )}
+
+      {/* Enhanced Watermarks */}
+      <EnhancedSecurityWatermark documentTitle={documentTitle} />
+
+      {/* PDF Content */}
+      <div className="flex-1 relative">
+        {isLoading && pdfUrl && !loadError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-20">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
+              <p className="text-white text-lg">Chargement du document sécurisé...</p>
+              <p className="text-gray-400 text-sm mt-2">Veuillez patienter</p>
+            </div>
+          </div>
+        )}
+
+        {pdfUrl && !loadError ? (
+          <iframe
+            ref={iframeRef}
+            src={pdfUrl}
+            className="w-full h-full border-0"
+            title="Document sécurisé"
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
+            style={{ minHeight: '800px' }}
+            allow="fullscreen"
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-white">
+            <div className="text-center p-10 bg-black/70 rounded-xl max-w-2xl">
+              <Icon name="FileX" size={64} className="mx-auto mb-4 text-red-500" />
+              <p className="text-2xl font-bold mb-2">PDF non disponible</p>
+              <p className="text-gray-300 mb-4">
+                {!pdfUrl
+                  ? "Token d'authentification manquant ou invalide."
+                  : "Impossible de charger le fichier PDF."}
+              </p>
+
+              <details className="mt-6 text-left text-sm allow-selection">
+                <summary className="cursor-pointer text-blue-400 hover:text-blue-300">
+                  Debug info
+                </summary>
+                <div className="mt-3 bg-black/90 p-4 rounded overflow-auto text-xs font-mono">
+                  <div><strong>ID:</strong> {reportData?.id || 'N/A'}</div>
+                  <div><strong>Token présent:</strong> {getToken() ? 'Oui' : 'Non'}</div>
+                  <div><strong>URL tentée:</strong> {pdfUrl || 'aucune'}</div>
+                  <div><strong>file_url:</strong> {reportData?.file_url || 'N/A'}</div>
+                </div>
+              </details>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer de sécurité */}
+      <div className="bg-gray-900 text-gray-400 p-3 border-t border-gray-700 text-xs flex justify-between items-center select-none">
+        <span>👤 {userInfo?.name || "Utilisateur"} • {userInfo?.email || "N/A"}</span>
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1 text-green-400">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+            Protection active avec alertes
+          </span>
+          <span>{new Date().toLocaleString('fr-FR')}</span>
+        </div>
+      </div>
+
+      {/* Inline animations */}
+      <style>{`
+        @keyframes slideDown {
+          from { transform: translateY(-100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   );
 };

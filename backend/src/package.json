@@ -19,8 +19,12 @@
     "morgan": "^1.10.1",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^7.0.10",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.4.449",
     "pg": "^8.11.0",
     "pg-hstore": "^2.3.4",
+    "react-pdf": "^10.2.0",
+    "screenfull": "^6.0.2",
     "sequelize": "^6.32.1"
   },
   "devDependencies": {

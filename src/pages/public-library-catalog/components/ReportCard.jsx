@@ -1,182 +1,233 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-
+import { addFavorite, removeFavorite, checkIfFavorited } from "./../../../services/api";
 const ReportCard = ({ report }) => {
+  const navigate = useNavigate();
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
+  const [favoriteCount, setFavoriteCount] = useState(report?.favoriteCount || 0);
+
+  // Check if already favorited on mount
+  useEffect(() => {
+    const checkFavoriteStatus = async () => {
+      try {
+        const response = await checkIfFavorited(report.id);
+        setIsFavorited(response.isFavorited);
+      } catch (error) {
+        console.error('Error checking favorite status:', error);
+      }
+    };
+    checkFavoriteStatus();
+  }, [report.id]);
+
   const getSpecialtyColor = (specialty) => {
     const colors = {
-      'informatique': 'bg-blue-100 text-blue-800',
-      'electrique': 'bg-yellow-100 text-yellow-800',
-      'mecanique': 'bg-green-100 text-green-800',
-      'civil': 'bg-purple-100 text-purple-800',
-      'industriel': 'bg-orange-100 text-orange-800',
-      'telecom': 'bg-pink-100 text-pink-800'
+      'informatique': 'bg-green-50 text-green-700 border-green-200',
+      'electrique': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+      'mecanique': 'bg-blue-50 text-blue-700 border-blue-200',
+      'civil': 'bg-purple-50 text-purple-700 border-purple-200',
+      'industriel': 'bg-orange-50 text-orange-700 border-orange-200',
+      'telecom': 'bg-pink-50 text-pink-700 border-pink-200'
     };
-    return colors?.[specialty] || 'bg-gray-100 text-gray-800';
+    return colors?.[specialty] || 'bg-gray-50 text-gray-700 border-gray-200';
   };
 
-  const getAccessLevelIcon = (level) => {
-    switch (level) {
-      case 'public': return 'Globe';
-      case 'restricted': return 'Lock';
-      case 'internal': return 'Shield';
-      default: return 'Eye';
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+  };
+
+  // ✅ HANDLE FAVORITE TOGGLE
+  const handleFavoriteToggle = async (e) => {
+    e.stopPropagation();
+    
+    setIsLoadingFavorite(true);
+    try {
+      if (isFavorited) {
+        await removeFavorite(report.id);
+        setIsFavorited(false);
+        setFavoriteCount(prev => Math.max(0, prev - 1));
+        console.log('✅ Removed from favorites');
+      } else {
+        await addFavorite(report.id);
+        setIsFavorited(true);
+        setFavoriteCount(prev => prev + 1);
+        console.log('✅ Added to favorites');
+      }
+    } catch (error) {
+      console.error('❌ Favorite error:', error);
+      alert('Erreur lors de la mise à jour des favoris');
+    } finally {
+      setIsLoadingFavorite(false);
     }
   };
 
-  const getAccessLevelColor = (level) => {
-    switch (level) {
-      case 'public': return 'text-success';
-      case 'restricted': return 'text-warning';
-      case 'internal': return 'text-error';
-      default: return 'text-muted-foreground';
+  const openSecureReader = () => {
+    if (!report.fileUrl) {
+      alert('Erreur: Le document n\'a pas de fichier PDF associé');
+      return;
     }
+
+    const documentData = {
+      id: report.id,
+      title: report.title || 'Sans titre',
+      file_url: report.fileUrl,
+      author: report.authors?.[0] || 'Auteur inconnu',
+      supervisor: report.supervisor || 'Non spécifié',
+      year: report.academicYear,
+      specialty: report.specialtyLabel,
+      keywords: report.keywords || [],
+      abstract: report.abstractPreview || '',
+      company: report.company || null,
+      submissionDate: report.submissionDate,
+      viewCount: report.viewCount,
+      favoriteCount: favoriteCount,
+      downloadCount: report.downloadCount
+    };
+
+    sessionStorage.setItem('selectedDocument', JSON.stringify(documentData));
+    navigate('/secure-pdf-reader', {
+      replace: false,
+      state: { document: documentData }
+    });
   };
 
   return (
-    <div className="bg-card border border-border rounded-academic academic-shadow-sm hover:academic-shadow-md academic-transition group">
-      <div className="p-6">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-heading font-semibold text-foreground mb-2 line-clamp-2 group-hover:text-primary academic-transition">
-              {report?.title}
-            </h3>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <Icon name="User" size={14} />
-              <span>{report?.authors?.join(', ')}</span>
-            </div>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Icon name="Calendar" size={14} />
-                <span>{report?.academicYear}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Icon name="Building" size={14} />
-                <span>{report?.department}</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 ml-4">
-            <Icon 
-              name={getAccessLevelIcon(report?.accessLevel)} 
-              size={16} 
-              className={getAccessLevelColor(report?.accessLevel)}
-            />
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSpecialtyColor(report?.specialty)}`}>
-              {report?.specialtyLabel}
-            </span>
-          </div>
+    <div className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+      <div className="p-5">
+        {/* Header: Title + Badge */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <h3 className="text-lg font-semibold text-gray-900 leading-snug flex-1">
+            {report?.title}
+          </h3>
+          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded border text-xs font-medium whitespace-nowrap ${getSpecialtyColor(report?.specialty)}`}>
+            <Icon name="Globe" size={12} />
+            {report?.specialtyLabel}
+          </span>
+        </div>
+
+        {/* Author */}
+        <div className="flex items-center gap-1.5 text-sm text-gray-600 mb-2">
+          <Icon name="User" size={14} />
+          <span>{report?.authors?.join(', ')}</span>
+        </div>
+
+        {/* Year */}
+        <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-4">
+          <Icon name="Calendar" size={14} />
+          <span>{report?.academicYear}</span>
+          <span className="mx-1">•</span>
+          <Icon name="Copy" size={14} />
         </div>
 
         {/* Abstract Preview */}
         <div className="mb-4">
-          <p className="text-sm text-muted-foreground line-clamp-3">
+          <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
             {report?.abstractPreview}
           </p>
         </div>
 
         {/* Keywords */}
         {report?.keywords && report?.keywords?.length > 0 && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-1">
-              {report?.keywords?.slice(0, 4)?.map((keyword, index) => (
-                <span 
-                  key={index}
-                  className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-muted text-muted-foreground"
-                >
-                  {keyword}
-                </span>
-              ))}
-              {report?.keywords?.length > 4 && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-muted text-muted-foreground">
-                  +{report?.keywords?.length - 4}
-                </span>
-              )}
-            </div>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {report?.keywords?.slice(0, 3)?.map((keyword, index) => (
+              <span 
+                key={index}
+                className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600"
+              >
+                {keyword}
+              </span>
+            ))}
+            {report?.keywords?.length > 3 && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">
+                +{report.keywords.length - 3}
+              </span>
+            )}
           </div>
         )}
 
-        {/* Metadata */}
-        <div className="flex items-center justify-between mb-4 pt-4 border-t border-border">
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        {/* Stats Bar */}
+        <div className="flex items-center justify-between text-xs text-gray-500 py-3 border-t border-gray-100">
+          <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
-              <Icon name="Eye" size={12} />
+              <Icon name="Eye" size={13} />
               <span>{report?.viewCount} vues</span>
             </div>
             <div className="flex items-center gap-1">
-              <Icon name="Heart" size={12} />
-              <span>{report?.favoriteCount}</span>
+              <Icon name="Heart" size={13} />
+              <span>{favoriteCount}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Icon name="Download" size={12} />
+              <Icon name="Download" size={13} />
               <span>{report?.downloadCount}</span>
             </div>
           </div>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Icon name="Clock" size={12} />
-            <span>Ajouté le {new Date(report.submissionDate)?.toLocaleDateString('fr-FR')}</span>
-          </div>
         </div>
 
-        {/* Supervisor & Company */}
-        <div className="flex items-center justify-between mb-4 text-sm">
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Icon name="UserCheck" size={14} />
-            <span>Encadrant: {report?.supervisor}</span>
-          </div>
-          {report?.company && (
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Icon name="Building2" size={14} />
-              <span>{report?.company}</span>
-            </div>
-          )}
+        {/* Supervisor Info */}
+        <div className="text-xs text-gray-600 mb-1">
+          <span className="font-medium">Encadrant:</span> {report?.supervisor}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              iconName="Heart"
-              iconSize={14}
-              className="text-muted-foreground hover:text-error"
-            >
-              Favoris
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              iconName="Share2"
-              iconSize={14}
-              className="text-muted-foreground"
-            >
-              Partager
-            </Button>
+        {/* Company */}
+        {report?.company && (
+          <div className="flex items-center gap-1 text-xs text-gray-600 mb-3">
+            <Icon name="Building2" size={12} />
+            <span>{report?.company}</span>
           </div>
+        )}
+
+        {/* Submission Date */}
+        <div className="flex items-center gap-1 text-xs text-gray-500 mb-4">
+          <Icon name="Clock" size={12} />
+          <span>Ajouté le {formatDate(report?.submissionDate)}</span>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          {/* ✅ FAVORITE BUTTON */}
+          <button 
+            onClick={handleFavoriteToggle}
+            disabled={isLoadingFavorite}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 text-sm rounded-lg transition-all ${
+              isFavorited 
+                ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200' 
+                : 'text-gray-600 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200'
+            } ${isLoadingFavorite ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <Icon 
+              name="Heart" 
+              size={14} 
+              fill={isFavorited ? "currentColor" : "none"}
+              strokeWidth={isFavorited ? 0 : 2}
+            />
+            {isLoadingFavorite ? '...' : isFavorited ? 'Favori' : 'Favoris'}
+          </button>
+
+          <button className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors">
+            <Icon name="Share2" size={14} />
+            Partager
+          </button>
           
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              iconName="Info"
-              iconSize={14}
-            >
-              Détails
-            </Button>
-            <Link to="/secure-pdf-reader">
-              <Button
-                variant="default"
-                size="sm"
-                iconName="Eye"
-                iconSize={14}
-              >
-                Consulter
-              </Button>
-            </Link>
-          </div>
+          <button className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors ml-auto">
+            <Icon name="Info" size={14} />
+            Détails
+          </button>
+
+          <button
+            onClick={openSecureReader}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+            disabled={!report?.fileUrl}
+          >
+            <Icon name="Eye" size={14} />
+            Consulter
+          </button>
         </div>
       </div>
     </div>

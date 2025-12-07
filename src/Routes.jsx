@@ -14,6 +14,9 @@ import LibraryLayout from './layouts/LibraryLayout';
 import PublicLibraryCatalogContent from './pages/public-library-catalog/PublicLibraryCatalogContent';
 import UserProfilePage from './pages/user-profile';
 import UserSettingsPage from './pages/user-settings';
+import PublicLibraryCatalog from './pages/public-library-catalog';
+import FavoritesPage from './pages/favorites';
+
 
 // 404 PAGE
 const NotFound = () => (
@@ -123,7 +126,15 @@ export default function AppRoutes() {
           }
         />
 
-        <Route path="/secure-pdf-reader" element={<Navigate to="/student/dashboard" replace />} />
+        {/* SECURE PDF READER - Accessible to all authenticated users (students, teachers, admins) */}
+        <Route 
+          path="/secure-pdf-reader"
+          element={
+            <ProtectedRoute>
+              <SecurePDFReader />
+            </ProtectedRoute>
+          }
+        />
 
         {/* TEACHER ROUTES */}
         <Route 
@@ -156,15 +167,33 @@ export default function AppRoutes() {
           }
         />
 
-        {/* LIBRARY - Single route with layout that adapts to role */}
+        {/* LIBRARY - Public catalog accessible to all authenticated users */}
         <Route 
           path="/library" 
           element={
-            <LibraryLayout>
-              <PublicLibraryCatalogContent />
-            </LibraryLayout>
-          } 
+            <ProtectedRoute>
+              <PublicLibraryCatalog />
+            </ProtectedRoute>
+          }
         />
+
+        {/* Alias for library */}
+        <Route 
+          path="/public-library-catalog" 
+          element={
+            <ProtectedRoute>
+              <PublicLibraryCatalog />
+            </ProtectedRoute>
+          }
+        />
+        <Route 
+  path="/favorites"
+  element={
+    <ProtectedRoute>
+      <FavoritesPage />
+    </ProtectedRoute>
+  }
+/>
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
