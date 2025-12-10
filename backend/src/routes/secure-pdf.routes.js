@@ -1,5 +1,5 @@
 // backend/src/routes/secure-pdf.routes.js
-// 🔥 COMPLETE VERSION - Dynamic localhost CORS support
+// VERSION WITH ENHANCED ERROR HANDLING
 
 const express = require('express');
 const router = express.Router();
@@ -13,7 +13,7 @@ try {
   const auth = require('../middleware/auth.middleware');
   authenticateToken = auth.authenticateToken || auth;
 } catch (e) {
-  console.error('Auth middleware missing');
+  console.error('Auth middleware missing:', e);
 }
 
 // Route de test
@@ -21,7 +21,7 @@ router.get('/test', (req, res) => {
   res.json({ status: 'Secure PDF route active', watermark: true });
 });
 
-// 🔍 DEBUG ROUTE - Check report status (REMOVE IN PRODUCTION)
+// DEBUG ROUTE
 router.get('/debug/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -33,11 +33,7 @@ router.get('/debug/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.json({
-        success: false,
-        message: 'Report not found',
-        id
-      });
+      return res.json({ success: false, message: 'Report not found', id });
     }
 
     const report = result.rows[0];
@@ -59,23 +55,34 @@ router.get('/debug/:id', async (req, res) => {
       }
     });
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ✅ MAIN ROUTE → /api/secure-pdf/view/5?token=xxx
+// MAIN ROUTE
 router.get('/view/:id', authenticateToken, async (req, res) => {
   const start = Date.now();
-  console.log(`\n📄 PDF sécurisé demandé → ID: ${req.params.id} | User: ${req.user.email}`);
+  const cleanMode = req.query.clean === 'true';
+  
+  console.log(`\n🔍 PDF Request:`);
+  console.log(`   Report ID: ${req.params.id}`);
+  console.log(`   User: ${req.user?.email || 'UNKNOWN'}`);
+  console.log(`   Clean mode: ${cleanMode}`);
+  console.log(`   User object:`, req.user);
 
   try {
     const { id } = req.params;
 
-    // Récupération du rapport - Enhanced debugging
-    console.log(`🔍 Searching for report ID: ${id}`);
+    // Validate ID
+    if (!id || isNaN(id)) {
+      console.error('❌ Invalid report ID:', id);
+      return res.status(400).json({ 
+        error: 'Invalid report ID',
+        received: id 
+      });
+    }
+
+    console.log(`📊 Querying database for report ${id}...`);
     
     const result = await db.query(
       `SELECT id, title, file_path, user_id, status, allow_public_access 
@@ -84,7 +91,7 @@ router.get('/view/:id', authenticateToken, async (req, res) => {
       [id]
     );
 
-    console.log(`📊 Query result:`, result.rows);
+    console.log(`   Query result: ${result.rows.length} row(s)`);
 
     if (result.rows.length === 0) {
       console.error(`❌ Report ${id} not found in database`);
@@ -92,90 +99,109 @@ router.get('/view/:id', authenticateToken, async (req, res) => {
         <div style="font-family:system-ui;text-align:center;padding:100px;background:#f9f9f9;height:100vh">
           <h1 style="font-size:5rem;color:#ddd">404</h1>
           <p>Document introuvable (ID: ${id})</p>
-          <p style="color:#666;font-size:14px;">Le rapport n'existe pas dans la base de données</p>
         </div>
       `);
     }
 
     const report = result.rows[0];
-    
-    // Check access permissions
-    if (report.status !== 'validated') {
-      console.warn(`⚠️ Report ${id} status is '${report.status}', not 'validated'`);
-      return res.status(403).send(`
-        <div style="font-family:system-ui;text-align:center;padding:100px;background:#f9f9f9;height:100vh">
-          <h1 style="font-size:5rem;color:#ddd">403</h1>
-          <p>Document non validé</p>
-          <p style="color:#666;font-size:14px;">Status actuel: ${report.status}</p>
-        </div>
-      `);
+    console.log(`✅ Report found:`, {
+      id: report.id,
+      title: report.title,
+      status: report.status,
+      file_path: report.file_path
+    });
+
+    // Access control (skip in clean mode for validators)
+    if (!cleanMode) {
+      console.log(`🔒 Checking access permissions...`);
+      
+      if (report.status !== 'validated') {
+        console.warn(`⚠️ Report not validated: ${report.status}`);
+        return res.status(403).send(`
+          <div style="font-family:system-ui;text-align:center;padding:100px;background:#f9f9f9;height:100vh">
+            <h1 style="font-size:5rem;color:#ddd">403</h1>
+            <p>Document non validé</p>
+            <p>Status actuel: ${report.status}</p>
+          </div>
+        `);
+      }
+
+      if (!report.allow_public_access) {
+        console.warn(`⚠️ Public access not allowed`);
+        return res.status(403).send(`
+          <div style="font-family:system-ui;text-align:center;padding:100px;background:#f9f9f9;height:100vh">
+            <h1 style="font-size:5rem;color:#ddd">403</h1>
+            <p>Accès public non autorisé</p>
+          </div>
+        `);
+      }
+    } else {
+      console.log(`✅ Clean mode: Skipping access checks`);
     }
 
-    if (!report.allow_public_access) {
-      console.warn(`⚠️ Report ${id} has allow_public_access = false`);
-      return res.status(403).send(`
-        <div style="font-family:system-ui;text-align:center;padding:100px;background:#f9f9f9;height:100vh">
-          <h1 style="font-size:5rem;color:#ddd">403</h1>
-          <p>Accès public non autorisé</p>
-          <p style="color:#666;font-size:14px;">Ce document n'est pas accessible publiquement</p>
-        </div>
-      `);
-    }
+    // File path resolution
+    const filePathFromDb = report.file_path;
+    const normalizedPath = filePathFromDb.replace(/^\/+/, '');
 
-    // ✅ Extract variables ONCE - no redeclaration
-    const filePath = report.file_path;
-    const reportTitle = report.title;
-    
-    // ✅ Build absolute path - try multiple possible locations
-    let fullPath;
-    let fileFound = false;
-    
-    // Remove leading slash if present
-    const cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
-    
-    // Try different possible paths
     const possiblePaths = [
-      path.join(__dirname, '../../', cleanPath),           // backend/uploads/...
-      path.join(__dirname, '../../../', cleanPath),        // root/uploads/...
-      path.join(process.cwd(), cleanPath),                 // current working directory
-      path.join(process.cwd(), 'backend', cleanPath),      // if running from root
+      path.join(process.cwd(), 'backend', normalizedPath),
+      path.join(process.cwd(), normalizedPath),
+      path.join(__dirname, '..', normalizedPath),
+      path.join(__dirname, '../../', normalizedPath),
     ];
+
+    let fullPath = null;
+    console.log(`🔍 Searching for PDF file...`);
     
-    console.log(`🔍 Trying to locate file...`);
-    for (const testPath of possiblePaths) {
+    for (const p of possiblePaths) {
+      console.log(`   Testing: ${p}`);
       try {
-        await fs.access(testPath);
-        fullPath = testPath;
-        fileFound = true;
-        console.log(`✅ File found at: ${fullPath}`);
+        await fs.access(p);
+        fullPath = p;
+        console.log(`   ✅ Found: ${fullPath}`);
         break;
       } catch (err) {
-        console.log(`❌ Not found at: ${testPath}`);
+        console.log(`   ❌ Not found`);
       }
     }
-    
-    if (!fileFound) {
-      console.error(`❌ File not found in any location. Original path: ${filePath}`);
-      console.error(`Tried paths:`, possiblePaths);
+
+    if (!fullPath) {
+      console.error('❌ PDF NOT FOUND ON DISK');
+      console.error('   DB path:', filePathFromDb);
+      console.error('   Tried paths:', possiblePaths);
+      
       return res.status(404).send(`
-        <div style="font-family:system-ui;text-align:center;padding:100px;background:#f9f9f9;height:100vh">
-          <h1 style="font-size:5rem;color:#ddd">404</h1>
-          <p>Fichier PDF manquant sur le serveur</p>
-          <p style="color:#666;font-size:14px;">Chemin recherché: ${filePath}</p>
-          <details style="margin-top:20px;text-align:left;max-width:600px;margin-left:auto;margin-right:auto;">
-            <summary style="cursor:pointer;color:#666;">Détails techniques</summary>
-            <pre style="background:#f5f5f5;padding:10px;border-radius:5px;overflow:auto;font-size:11px;">
-__dirname: ${__dirname}
-process.cwd(): ${process.cwd()}
-Chemins testés:
-${possiblePaths.map((p, i) => `${i + 1}. ${p}`).join('\n')}
-            </pre>
-          </details>
+        <div style="font-family:system-ui;text-align:center;padding:100px;">
+          <h1>404 - Fichier PDF introuvable</h1>
+          <p>Le fichier n'existe pas sur le serveur</p>
+          <p style="color:#666;font-size:0.9em;">Path: ${filePathFromDb}</p>
         </div>
       `);
     }
 
-    // Lecture + watermark serveur
+    // MODE CLEAN = VALIDATEUR → PDF PROPRE SANS WATERMARK
+    if (cleanMode) {
+      console.log('📄 Serving clean PDF (no watermark)');
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'inline');
+      res.removeHeader('X-Frame-Options');
+      res.setHeader('Content-Security-Policy', "frame-ancestors *;");
+      
+      const stream = require('fs').createReadStream(fullPath);
+      stream.on('error', (err) => {
+        console.error('❌ Stream error:', err);
+        if (!res.headersSent) {
+          res.status(500).send('Error reading PDF file');
+        }
+      });
+      
+      return stream.pipe(res);
+    }
+
+    // MODE NORMAL → avec watermark
+    console.log('📄 Serving PDF with watermark');
+    
     const pdfBytes = await fs.readFile(fullPath);
     const pdfDoc = await PDFDocument.load(pdfBytes);
     const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -186,7 +212,6 @@ ${possiblePaths.map((p, i) => `${i + 1}. ${p}`).join('\n')}
     pages.forEach(page => {
       const { width, height } = page.getSize();
 
-      // Gros watermark central
       page.drawText('ESPRIM - DOCUMENT PROTÉGÉ', {
         x: width / 2 - 180,
         y: height / 2,
@@ -197,7 +222,6 @@ ${possiblePaths.map((p, i) => `${i + 1}. ${p}`).join('\n')}
         opacity: 0.15,
       });
 
-      // Infos utilisateur en diagonale
       page.drawText(`${req.user.name || 'Utilisateur'} • ${req.user.email} • ${now}`, {
         x: 60,
         y: height - 100,
@@ -211,87 +235,54 @@ ${possiblePaths.map((p, i) => `${i + 1}. ${p}`).join('\n')}
 
     const finalPdfBytes = await pdfDoc.save();
 
-    // ✅ Extract origin FIRST (before using it)
     const origin = req.headers.origin;
-    console.log('📍 Request origin:', origin);
+    console.log('🌐 Request origin:', origin);
 
-    // ✅ FIXED HEADERS - Allow iframe embedding from any localhost
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="rapport.pdf"');
-    
-    // ✅ Cache control - prevent caching of sensitive documents
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
-    
-    // ✅ Security headers
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    
-    // ✅ CRITICAL: Remove X-Frame-Options to allow iframe
     res.removeHeader('X-Frame-Options');
-    console.log('🗑️  Removed X-Frame-Options header');
-    
-    // ✅ FIXED CSP - Allow PDF rendering in iframe from any localhost
-    let frameAncestors = "'none'"; // Default to blocking
-    
-    if (origin) {
-      // Check if origin is localhost with any port
-      if (origin.match(/^http:\/\/localhost:\d+$/) || origin.match(/^http:\/\/127\.0\.0\.1:\d+$/)) {
-        frameAncestors = `${origin}`;
-        console.log(`✅ Allowing frame-ancestors: ${frameAncestors}`);
-      }
-    } else {
-      // No origin header - allow any localhost (for direct access)
-      frameAncestors = "http://localhost:* http://127.0.0.1:*";
-      console.log('⚠️  No origin header, allowing all localhost');
-    }
+
+    let frameAncestors = origin?.match(/^http:\/\/localhost:\d+$/) || origin?.match(/^http:\/\/127\.0\.0\.1:\d+$/) 
+      ? origin 
+      : "http://localhost:* http://127.0.0.1:*";
     
     const cspHeader = `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; object-src 'self'; frame-ancestors ${frameAncestors};`;
     res.setHeader('Content-Security-Policy', cspHeader);
-    console.log('🔒 CSP Header:', cspHeader);
 
-    // ✅ DYNAMIC CORS - Allow any localhost port
-    if (origin) {
-      // Check if origin is localhost with any port
-      if (origin.match(/^http:\/\/localhost:\d+$/) || 
-          origin.match(/^http:\/\/127\.0\.0\.1:\d+$/)) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-        res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-        console.log(`✅ CORS allowed for origin: ${origin}`);
-      }
+    if (origin?.match(/^http:\/\/localhost:\d+$/) || origin?.match(/^http:\/\/127\.0\.0\.1:\d+$/)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
     }
 
     res.send(Buffer.from(finalPdfBytes));
-
-    console.log(`✅ PDF sécurisé envoyé en ${Date.now() - start}ms`);
+    console.log(`✅ PDF delivered in ${Date.now() - start}ms`);
 
   } catch (error) {
-    console.error('❌ Erreur secure-pdf:', error);
-    res.status(500).send(`
-      <div style="font-family:system-ui;text-align:center;padding:100px;background:#f9f9f9;height:100vh">
-        <h1 style="font-size:5rem;color:#ddd">500</h1>
-        <p>Erreur serveur</p>
-        <p style="color:#666;font-size:14px;">${error.message}</p>
-      </div>
-    `);
+    console.error('❌ ERROR in secure-pdf route:', error);
+    console.error('   Stack:', error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'Internal server error',
+        message: error.message,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      });
+    }
   }
 });
 
-// ✅ Handle OPTIONS preflight requests (CORS) - Accept any localhost
+// OPTIONS
 router.options('/view/:id', (req, res) => {
   const origin = req.headers.origin;
-  if (origin) {
-    // Check if origin is localhost with any port
-    if (origin.match(/^http:\/\/localhost:\d+$/) || 
-        origin.match(/^http:\/\/127\.0\.0\.1:\d+$/)) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-      console.log(`✅ OPTIONS CORS allowed for origin: ${origin}`);
-    }
+  if (origin?.match(/^http:\/\/localhost:\d+$/) || origin?.match(/^http:\/\/127\.0\.0\.1:\d+$/)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
   }
   res.sendStatus(200);
 });

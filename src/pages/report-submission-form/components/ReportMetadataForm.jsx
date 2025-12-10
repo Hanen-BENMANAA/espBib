@@ -3,141 +3,122 @@ import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import Icon from '../../../components/AppIcon';
+import api from '../../../services/api';
 
 const ReportMetadataForm = ({ formData, onFormChange, errors = {} }) => {
   const [keywords, setKeywords] = useState(formData?.keywords || []);
   const [keywordInput, setKeywordInput] = useState('');
   const [abstractLength, setAbstractLength] = useState(formData?.abstract?.length || 0);
+  const [supervisors, setSupervisors] = useState([]);
+  const [loadingSupervisors, setLoadingSupervisors] = useState(true);
 
-  const specialtyOptions = [
-    { value: 'informatique', label: 'Génie Informatique' },
-    { value: 'electrique', label: 'Génie Électrique' },
-    { value: 'mecanique', label: 'Génie Mécanique' },
-    { value: 'civil', label: 'Génie Civil' },
-    { value: 'industriel', label: 'Génie Industriel' },
-    { value: 'telecom', label: 'Télécommunications' }
+  // SPÉCIALITÉS (CORRIGÉ : à l'intérieur du composant)
+  const specialiteOptions = [
+    { value: 'dsai', label: 'Data Science & Intelligence Artificielle' },
+    { value: 'web-mobile', label: 'Développement Avancé Web & Mobile' },
+    { value: 'cloud-cyber', label: 'Cloud & Cybersécurité' },
+    { value: 'mecatronique', label: 'Mécatronique' },
+    { value: 'electronique-telecom', label: 'Électronique Embarquée & Télécom' },
+    { value: 'systemes-automatises', label: 'Systèmes Automatisés & Maintenance Industrielle' },
+    { value: 'genie-industriel-energetique', label: 'Génie Industriel et Systèmes Énergétiques' },
   ];
 
-  const academicYearOptions = [
-    { value: '2023-2024', label: '2023-2024' },
-    { value: '2022-2023', label: '2022-2023' },
-    { value: '2021-2022', label: '2021-2022' },
-    { value: '2020-2021', label: '2020-2021' }
-  ];
+  // ANNÉES ACADÉMIQUES DYNAMIQUES
+  const currentYear = new Date().getFullYear();
+  const academicYearOptions = Array.from({ length: 7 }, (_, i) => {
+    const year = currentYear - i;
+    return { value: `${year}-${year + 1}`, label: `${year}-${year + 1}` };
+  });
 
-  const supervisorOptions = [
-    { value: 'prof-ben-ahmed', label: 'Prof. Ahmed Ben Salah - Informatique' },
-    { value: 'Leila Trabelsi', label: 'Prof. Leila Trabelsi - Électrique' },
-    { value: 'prof-gharbi', label: 'Prof. Mohamed Gharbi - Mécanique' },
-    { value: 'prof-mansouri', label: 'Prof. Fatma Mansouri - Civil' },
-    { value: 'prof-khelifi', label: 'Prof. Karim Khelifi - Industriel' },
-    { value: 'prof-bouaziz', label: 'Prof. Sonia Bouaziz - Télécommunications' }
-  ];
+  // CHARGEMENT DES ENCADRANTS
+  useEffect(() => {
+    const fetchSupervisors = async () => {
+      try {
+        setLoadingSupervisors(true);
+        const res = await api.get('/users/supervisors-public');
+        if (res.data.success) {
+          const options = res.data.data.map(s => ({
+            value: s.id.toString(),
+            label: `${s.first_name} ${s.last_name} - ${s.email}`
+          }));
+          setSupervisors(options);
+        }
+      } catch (err) {
+        console.error("Erreur chargement encadrants", err);
+      } finally {
+        setLoadingSupervisors(false);
+      }
+    };
+    fetchSupervisors();
+  }, []);
 
   const handleInputChange = (field, value) => {
-    const updatedData = { ...formData, [field]: value };
-    onFormChange(updatedData);
+    onFormChange({ ...formData, [field]: value });
   };
 
   const handleAbstractChange = (e) => {
-    const value = e?.target?.value;
-    setAbstractLength(value?.length);
+    const value = e?.target?.value || '';
+    setAbstractLength(value.length);
     handleInputChange('abstract', value);
   };
 
   const addKeyword = () => {
-    if (keywordInput?.trim() && !keywords?.includes(keywordInput?.trim()) && keywords?.length < 10) {
-      const newKeywords = [...keywords, keywordInput?.trim()];
+    const trimmed = keywordInput.trim();
+    if (trimmed && !keywords.includes(trimmed) && keywords.length < 10) {
+      const newKeywords = [...keywords, trimmed];
       setKeywords(newKeywords);
       handleInputChange('keywords', newKeywords);
       setKeywordInput('');
     }
   };
 
-  const removeKeyword = (keywordToRemove) => {
-    const newKeywords = keywords?.filter(keyword => keyword !== keywordToRemove);
+  const removeKeyword = (kw) => {
+    const newKeywords = keywords.filter(k => k !== kw);
     setKeywords(newKeywords);
     handleInputChange('keywords', newKeywords);
   };
 
   const handleKeywordKeyPress = (e) => {
-    if (e?.key === 'Enter') {
-      e?.preventDefault();
+    if (e.key === 'Enter') {
+      e.preventDefault();
       addKeyword();
     }
   };
 
-  useEffect(() => {
-    if (formData?.keywords) {
-      setKeywords(formData?.keywords);
-    }
-  }, [formData?.keywords]);
-
   return (
     <div className="space-y-6">
-      {/* Report Title */}
+      {/* Titre */}
       <div>
         <Input
           label="Titre du Rapport"
-          type="text"
           placeholder="Saisissez le titre complet de votre rapport PFE"
           value={formData?.title || ''}
-          onChange={(e) => handleInputChange('title', e?.target?.value)}
+          onChange={(e) => handleInputChange('title', e.target.value)}
           error={errors?.title}
           required
           maxLength={200}
           description="Maximum 200 caractères"
         />
       </div>
-      {/* Author Information */}
+
+      {/* Auteur */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Prénom de l'Auteur"
-          type="text"
-          placeholder="Prénom"
-          value={formData?.authorFirstName || ''}
-          onChange={(e) => handleInputChange('authorFirstName', e?.target?.value)}
-          error={errors?.authorFirstName}
-          required
-        />
-        <Input
-          label="Nom de l'Auteur"
-          type="text"
-          placeholder="Nom de famille"
-          value={formData?.authorLastName || ''}
-          onChange={(e) => handleInputChange('authorLastName', e?.target?.value)}
-          error={errors?.authorLastName}
-          required
-        />
+        <Input label="Prénom" value={formData?.authorFirstName || ''} onChange={e => handleInputChange('authorFirstName', e.target.value)} required />
+        <Input label="Nom" value={formData?.authorLastName || ''} onChange={e => handleInputChange('authorLastName', e.target.value)} required />
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Numéro d'Étudiant"
-          type="text"
-          placeholder="Ex: ESP2024001"
-          value={formData?.studentNumber || ''}
-          onChange={(e) => handleInputChange('studentNumber', e?.target?.value)}
-          error={errors?.studentNumber}
-          required
-        />
-        <Input
-          label="Email Institutionnel"
-          type="email"
-          placeholder="prenom.nom@esprim.tn"
-          value={formData?.email || ''}
-          onChange={(e) => handleInputChange('email', e?.target?.value)}
-          error={errors?.email}
-          required
-        />
+        <Input label="Numéro d'Étudiant" placeholder="Ex: ESP2024001" value={formData?.studentNumber || ''} onChange={e => handleInputChange('studentNumber', e.target.value)} required />
+        <Input label="Email Institutionnel" type="email" placeholder="prenom.nom@esprim.tn" value={formData?.email || ''} onChange={e => handleInputChange('email', e.target.value)} required />
       </div>
-      {/* Academic Information */}
+
+      {/* Spécialité & Année */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Select
           label="Spécialité"
-          options={specialtyOptions}
+          options={specialiteOptions}
           value={formData?.specialty || ''}
           onChange={(value) => handleInputChange('specialty', value)}
-          error={errors?.specialty}
           required
           placeholder="Sélectionnez votre spécialité"
         />
@@ -146,150 +127,108 @@ const ReportMetadataForm = ({ formData, onFormChange, errors = {} }) => {
           options={academicYearOptions}
           value={formData?.academicYear || ''}
           onChange={(value) => handleInputChange('academicYear', value)}
-          error={errors?.academicYear}
           required
           placeholder="Sélectionnez l'année"
         />
       </div>
-      {/* Supervisor Selection */}
+
+      {/* Encadrant Principal */}
       <div>
         <Select
           label="Encadrant Principal"
-          options={supervisorOptions}
-          value={formData?.supervisor || ''}
-          onChange={(value) => handleInputChange('supervisor', value)}
-          error={errors?.supervisor}
+          options={loadingSupervisors ? [{ value: '', label: 'Chargement...' }] : supervisors}
+          value={formData?.supervisor_id?.toString() || ''}
+          onChange={(value) => handleInputChange('supervisor_id', parseInt(value))}
           required
           searchable
-          placeholder="Recherchez et sélectionnez votre encadrant"
-          description="Encadrant académique responsable de votre projet"
+          placeholder="Recherchez votre encadrant"
         />
       </div>
-      {/* Co-supervisor (Optional) */}
+
+      {/* Co-encadrant */}
       <div>
         <Select
           label="Co-encadrant (Optionnel)"
-          options={supervisorOptions}
-          value={formData?.coSupervisor || ''}
-          onChange={(value) => handleInputChange('coSupervisor', value)}
-          error={errors?.coSupervisor}
+          options={[{ value: '', label: 'Aucun' }, ...supervisors]}
+          value={formData?.co_supervisor_id?.toString() || ''}
+          onChange={(value) => handleInputChange('co_supervisor_id', value ? parseInt(value) : null)}
           searchable
-          placeholder="Sélectionnez un co-encadrant si applicable"
-          description="Encadrant secondaire ou industriel"
+          placeholder="Sélectionnez un co-encadrant"
         />
       </div>
-      {/* Company Information */}
+
+      {/* Entreprise & Date */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="Entreprise d'Accueil (Optionnel)"
-          type="text"
-          placeholder="Nom de l'entreprise"
-          value={formData?.hostCompany || ''}
-          onChange={(e) => handleInputChange('hostCompany', e?.target?.value)}
-          error={errors?.hostCompany}
-        />
-        <Input
-          label="Date de Soutenance"
-          type="date"
-          value={formData?.defenseDate || ''}
-          onChange={(e) => handleInputChange('defenseDate', e?.target?.value)}
-          error={errors?.defenseDate}
-          required
-        />
+        <Input label="Entreprise d'Accueil (Optionnel)" value={formData?.hostCompany || ''} onChange={e => handleInputChange('hostCompany', e.target.value)} />
+        <Input label="Date de Soutenance" type="date" value={formData?.defenseDate || ''} onChange={e => handleInputChange('defenseDate', e.target.value)} required />
       </div>
-      {/* Keywords Section */}
+
+      {/* Mots-clés */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           Mots-clés <span className="text-destructive">*</span>
         </label>
-        <div className="space-y-3">
-          <div className="flex space-x-2">
-            <div className="flex-1">
-              <Input
-                type="text"
-                placeholder="Ajoutez un mot-clé et appuyez sur Entrée"
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e?.target?.value)}
-                onKeyPress={handleKeywordKeyPress}
-                maxLength={50}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={addKeyword}
-              disabled={!keywordInput?.trim() || keywords?.length >= 10}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-academic hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed academic-transition"
-            >
-              <Icon name="Plus" size={16} />
-            </button>
-          </div>
-          
-          {keywords?.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {keywords?.map((keyword, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center space-x-1 px-3 py-1 bg-secondary text-secondary-foreground rounded-full text-sm"
-                >
-                  <span>{keyword}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeKeyword(keyword)}
-                    className="hover:text-destructive academic-transition"
-                  >
-                    <Icon name="X" size={14} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          
-          <p className="text-xs text-muted-foreground">
-            {keywords?.length}/10 mots-clés • Minimum 3 requis
-          </p>
-          {errors?.keywords && (
-            <p className="text-sm text-destructive">{errors?.keywords}</p>
-          )}
+        <div className="flex space-x-2">
+          <Input
+            placeholder="Ajoutez un mot-clé + Entrée"
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            onKeyPress={handleKeywordKeyPress}
+          />
+          <button
+            onClick={addKeyword}
+            disabled={!keywordInput.trim() || keywords.length >= 10}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-academic hover:bg-primary/90 disabled:opacity-50"
+          >
+            <Icon name="Plus" size={16} />
+          </button>
         </div>
+        {keywords.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {keywords.map((kw, i) => (
+              <span key={i} className="inline-flex items-center gap-1 px-3 py-1 bg-secondary rounded-full text-sm">
+                {kw}
+                <button onClick={() => removeKeyword(kw)} className="hover:text-destructive">
+                  <Icon name="X" size={14} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground mt-2">{keywords.length}/10 (minimum 3)</p>
       </div>
-      {/* Abstract */}
+
+      {/* Résumé */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           Résumé <span className="text-destructive">*</span>
         </label>
         <textarea
-          className="w-full min-h-[120px] p-3 border border-border rounded-academic focus:ring-2 focus:ring-ring focus:border-transparent resize-vertical"
-          placeholder="Rédigez un résumé détaillé de votre projet (minimum 200 caractères, maximum 1000 caractères)"
+          className="w-full min-h-[120px] p-3 border rounded-academic focus:ring-2 focus:ring-ring resize-vertical"
+          placeholder="Résumé détaillé (200 à 1000 caractères)"
           value={formData?.abstract || ''}
           onChange={handleAbstractChange}
           maxLength={1000}
         />
-        <div className="flex justify-between items-center mt-2">
-          <p className="text-xs text-muted-foreground">
-            Minimum 200 caractères requis
-          </p>
-          <p className={`text-xs ${abstractLength > 1000 ? 'text-destructive' : 'text-muted-foreground'}`}>
-            {abstractLength}/1000 caractères
-          </p>
+        <div className="flex justify-between mt-2 text-xs">
+          <span className="text-muted-foreground">Min 200 caractères</span>
+          <span className={abstractLength >= 200 ? 'text-muted-foreground' : 'text-destructive'}>
+            {abstractLength}/1000
+          </span>
         </div>
-        {errors?.abstract && (
-          <p className="text-sm text-destructive mt-1">{errors?.abstract}</p>
-        )}
       </div>
-      {/* Additional Options */}
+
+      {/* Options */}
       <div className="space-y-3">
         <Checkbox
           label="Autoriser la consultation publique"
-          description="Permettre aux utilisateurs autorisés de consulter ce rapport"
-          checked={formData?.allowPublicAccess || false}
-          onChange={(e) => handleInputChange('allowPublicAccess', e?.target?.checked)}
+          checked={formData?.allowPublicAccess ?? true}
+          onChange={(e) => handleInputChange('allowPublicAccess', e.target.checked)}
         />
-        
         <Checkbox
           label="Rapport confidentiel"
-          description="Marquer ce rapport comme confidentiel (accès restreint)"
-          checked={formData?.isConfidential || false}
-          onChange={(e) => handleInputChange('isConfidential', e?.target?.checked)}
+          checked={!!formData?.isConfidential}
+          onChange={(e) => handleInputChange('isConfidential', e.target.checked)}
         />
       </div>
     </div>

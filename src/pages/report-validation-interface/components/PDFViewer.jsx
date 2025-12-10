@@ -1,71 +1,110 @@
-// PDFViewer.jsx - PRODUCTION VERSION 2025
+// src/pages/report-validation-interface/components/PDFViewer.jsx
+import React, { useState, useEffect } from 'react';
+import { getToken } from '../../../lib/auth';
 
-import React, { useState } from 'react';
-import Icon from '../../../components/AppIcon';
+const PDFViewer = ({ reportData }) => {
+  const [pdfUrl, setPdfUrl] = useState('');
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-const PDFViewer = ({ reportData, reviewerInfo }) => {
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  useEffect(() => {
+    if (reportData?.id) {
+      const token = getToken();
+      
+      console.log('🔍 PDFViewer Debug:', {
+        reportId: reportData.id,
+        hasToken: !!token,
+        tokenPreview: token ? `${token.substring(0, 20)}...` : 'NO TOKEN'
+      });
 
-  // Build PDF URL
-  const pdfUrl = reportData?.file_url
-    ? `http://localhost:5000${reportData.file_url}`
-    : null;
+      if (!token) {
+        setError('Token d\'authentification manquant');
+        setLoading(false);
+        return;
+      }
+
+      // Build the secure PDF URL with clean parameter
+      const url = `http://localhost:5000/api/secure-pdf/view/${reportData.id}?token=${token}&clean=true`;
+      console.log('📄 PDF URL:', url);
+      
+      setPdfUrl(url);
+      setLoading(false);
+
+      // Test the URL
+      fetch(url, {
+        method: 'HEAD',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(response => {
+        console.log('✅ PDF accessibility test:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      })
+      .catch(err => {
+        console.error('❌ PDF access failed:', err);
+        setError(`Erreur d'accès au PDF: ${err.message}`);
+      });
+    }
+  }, [reportData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-500">Chargement du rapport...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-red-50 rounded-lg border-2 border-red-200">
+        <div className="text-center p-6">
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h3 className="text-xl font-bold text-red-800 mb-2">Erreur de chargement</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!pdfUrl) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
+        <p className="text-gray-500">URL du rapport non disponible</p>
+      </div>
+    );
+  }
 
   return (
-    <div className={`bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden ${
-      isFullscreen ? 'fixed inset-0 z-50 bg-white' : 'h-full'
-    }`}>
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-gray-50">
-        <div className="flex items-center space-x-3">
-          <Icon name="FileText" size={20} className="text-blue-600" />
-          <div>
-            <h3 className="font-semibold text-lg truncate max-w-xl">
-              {reportData?.title || 'Rapport sans titre'}
-            </h3>
-            <p className="text-sm text-gray-600">
-              PDF • {reportData?.fileSize || 'Taille inconnue'}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => setIsFullscreen(!isFullscreen)}
-          className="p-2 hover:bg-gray-200 rounded-lg transition"
-          title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
-        >
-          <Icon name={isFullscreen ? "Minimize2" : "Maximize2"} size={20} />
-        </button>
-      </div>
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
 
-      {/* PDF Viewer */}
-      <div className="h-full bg-gray-900" style={{ minHeight: isFullscreen ? '100vh' : '600px' }}>
-        {pdfUrl ? (
-          <iframe
-            src={pdfUrl}
-            width="100%"
-            height="100%"
-            className="border-0"
-            title="Rapport PFE"
-            allowFullScreen
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full bg-gray-100">
-            <div className="text-center p-8">
-              <Icon name="FileX" size={64} className="text-red-500 mx-auto mb-4" />
-              <p className="text-xl font-bold text-gray-700">PDF non trouvé</p>
-              <p className="text-gray-500 mt-2">
-                Le fichier n'existe pas ou n'a pas été téléchargé correctement.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="p-3 bg-gray-50 border-t text-xs text-gray-600 flex justify-between">
-        <span>Enseignant: {reviewerInfo?.name || 'Inconnu'}</span>
-        <span>{new Date().toLocaleString('fr-FR')}</span>
-      </div>
+      <iframe
+        src={pdfUrl}
+        className="w-full h-screen border-0"
+        title="Rapport"
+        allowFullScreen
+        onError={(e) => {
+          console.error('❌ iframe error:', e);
+          setError('Erreur lors du chargement du PDF dans l\'iframe');
+        }}
+      />
     </div>
   );
 };

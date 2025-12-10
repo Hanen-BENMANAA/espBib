@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Icon from '../AppIcon';
 import NotificationPanel from '../notifications/NotificationPanel';
+import TeacherNotificationPanel from '../notifications/TeacherNotificationPanel';
 import { logout } from '../../lib/auth';
 
 const Header = () => {
@@ -24,7 +25,6 @@ const Header = () => {
   const navItems = isTeacher
     ? [
         { label: 'Tableau de Bord', path: '/teacher/dashboard', icon: 'LayoutDashboard' },
-        { label: 'Validation', path: '/teacher/validation', icon: 'CheckCircle' },
         { label: 'Bibliothèque', path: '/library', icon: 'Library' },
         { label: 'Favoris', path: '/favorites', icon: 'Heart' },
       ]
@@ -84,7 +84,7 @@ const Header = () => {
             </nav>
 
             <div className="flex items-center gap-4">
-              <NotificationPanel />
+              {isTeacher ? <TeacherNotificationPanel /> : <NotificationPanel />}
               <div className="relative" ref={menuRef}>
                 <button onClick={() => setIsUserMenuOpen(!isUserMenuOpen)} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-100 rounded-xl transition">
                   <div className={`w-9 h-9 ${getRoleColor()} rounded-full flex items-center justify-center text-white font-bold text-sm`}>

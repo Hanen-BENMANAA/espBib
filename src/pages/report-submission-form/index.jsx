@@ -12,23 +12,23 @@ import DraftAutoSave from './components/DraftAutoSave';
 
 const ReportSubmissionForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
-    title: '',
-    authorFirstName: '',
-    authorLastName: '',
-    studentNumber: '',
-    email: '',
-    specialty: '',
-    academicYear: '',
-    supervisor: '',
-    coSupervisor: '',
-    hostCompany: '',
-    defenseDate: '',
-    keywords: [],
-    abstract: '',
-    allowPublicAccess: true,
-    isConfidential: false
-  });
+const [formData, setFormData] = useState({
+  title: '',
+  authorFirstName: '',
+  authorLastName: '',
+  studentNumber: '',
+  email: '',
+  specialty: '',
+  academicYear: '',
+  supervisor_id: null,        // ← CHANGED
+  co_supervisor_id: null,     // ← CHANGED
+  hostCompany: '',
+  defenseDate: '',
+  keywords: [],
+  abstract: '',
+  allowPublicAccess: true,
+  isConfidential: false,
+});
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -68,26 +68,27 @@ const ReportSubmissionForm = () => {
     setShowBanner(true);
   }, []);
 
-  const validateStep = useMemo(() => {
-    return (step) => {
-      const newErrors = {};
-      if (step === 1) {
-        if (!formData.title || formData.title.length < 10) newErrors.title = 'Le titre doit contenir au moins 10 caractères';
-        if (!formData.authorFirstName) newErrors.authorFirstName = 'Le prénom est requis';
-        if (!formData.authorLastName) newErrors.authorLastName = 'Le nom est requis';
-        if (!formData.studentNumber) newErrors.studentNumber = 'Le numéro d\'étudiant est requis';
-        if (!formData.email || !formData.email.includes('@esprim.tn')) newErrors.email = 'Email @esprim.tn requis';
-        if (!formData.specialty) newErrors.specialty = 'La spécialité est requise';
-        if (!formData.academicYear) newErrors.academicYear = 'L\'année académique est requise';
-        if (!formData.supervisor) newErrors.supervisor = 'L\'encadrant principal est requis';
-        if (!formData.defenseDate) newErrors.defenseDate = 'La date de soutenance est requise';
-        if (!formData.keywords || formData.keywords.length < 3) newErrors.keywords = 'Au moins 3 mots-clés requis';
-        if (!formData.abstract || formData.abstract.length < 200) newErrors.abstract = 'Le résumé doit contenir au moins 200 caractères';
-      }
-      if (step === 2 && !uploadedFile) newErrors.file = 'Le fichier PDF est requis';
-      return Object.keys(newErrors).length === 0;
-    };
-  }, [formData, uploadedFile]);
+// In index.jsx
+const validateStep = useMemo(() => {
+  return (step) => {
+    const newErrors = {};
+    if (step === 1) {
+      if (!formData.title || formData.title.length < 10) newErrors.title = 'Le titre doit contenir au moins 10 caractères';
+      if (!formData.authorFirstName) newErrors.authorFirstName = 'Le prénom est requis';
+      if (!formData.authorLastName) newErrors.authorLastName = 'Le nom est requis';
+      if (!formData.studentNumber) newErrors.studentNumber = 'Le numéro d\'étudiant est requis';
+      if (!formData.email || !formData.email.includes('@esprim.tn')) newErrors.email = 'Email @esprim.tn requis';
+      if (!formData.specialty) newErrors.specialty = 'La spécialité est requise';
+      if (!formData.academicYear) newErrors.academicYear = 'L\'année académique est requise';
+      if (!formData.supervisor_id) newErrors.supervisor = 'L\'encadrant principal est requis'; // ← CHANGED
+      if (!formData.defenseDate) newErrors.defenseDate = 'La date de soutenance est requise';
+      if (!formData.keywords || formData.keywords.length < 3) newErrors.keywords = 'Au moins 3 mots-clés requis';
+      if (!formData.abstract || formData.abstract.length < 200) newErrors.abstract = 'Le résumé doit contenir au moins 200 caractères';
+    }
+    if (step === 2 && !uploadedFile) newErrors.file = 'Le fichier PDF est requis';
+    return Object.keys(newErrors).length === 0;
+  };
+}, [formData, uploadedFile]);
 
   const handleNextStep = () => {
     if (validateStep(currentStep)) {
@@ -267,24 +268,24 @@ if (!response.ok) {
     }
   };
 
-  const isStepCompleted = (stepId) => {
-    if (stepId === 1) {
-      return formData.title?.length >= 10 &&
-             formData.authorFirstName &&
-             formData.authorLastName &&
-             formData.studentNumber &&
-             formData.email?.includes('@esprim.tn') &&
-             formData.specialty &&
-             formData.academicYear &&
-             formData.supervisor &&
-             formData.defenseDate &&
-             formData.keywords?.length >= 3 &&
-             formData.abstract?.length >= 200;
-    }
-    if (stepId === 2) return !!uploadedFile;
-    if (stepId === 3) return Object.values(checklistData).filter(Boolean).length >= 15;
-    return false;
-  };
+const isStepCompleted = (stepId) => {
+  if (stepId === 1) {
+    return formData.title?.length >= 10 &&
+           formData.authorFirstName &&
+           formData.authorLastName &&
+           formData.studentNumber &&
+           formData.email?.includes('@esprim.tn') &&
+           formData.specialty &&
+           formData.academicYear &&
+           formData.supervisor_id &&  // ← CHANGED
+           formData.defenseDate &&
+           formData.keywords?.length >= 3 &&
+           formData.abstract?.length >= 200;
+  }
+  if (stepId === 2) return !!uploadedFile;
+  if (stepId === 3) return Object.values(checklistData).filter(Boolean).length >= 15;
+  return false;
+};
 
   const getStepContent = () => {
     switch (currentStep) {
@@ -433,7 +434,6 @@ if (!response.ok) {
           </div>
         </div>
       </main>
-      <QuickActionPanel userRole="student" />
     </div>
   );
 };

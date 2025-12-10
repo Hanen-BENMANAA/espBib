@@ -41,8 +41,11 @@ const StudentDashboard = () => {
           reports = result;
         }
 
-        setSubmissions(reports);
+        // Log the structure to debug
         console.log('Rapports chargés :', reports);
+        console.log('Premier rapport structure:', reports[0]);
+
+        setSubmissions(reports);
 
       } catch (err) {
         console.error(err);
@@ -57,11 +60,57 @@ const StudentDashboard = () => {
 
   const safeSubmissions = Array.isArray(submissions) ? submissions : [];
 
+  // Calculate stats based on actual status values from API
   const stats = {
     totalSubmissions: safeSubmissions.length,
-    pendingReports: safeSubmissions.filter(r => r.status === 'pending').length,
-    validatedReports: safeSubmissions.filter(r => r.status === 'validated').length,
-    draftReports: 0
+    pendingReports: safeSubmissions.filter(r => 
+      r.status === 'pending' || r.status === 'pending_validation'
+    ).length,
+    validatedReports: safeSubmissions.filter(r => 
+      r.status === 'validated'
+    ).length,
+    draftReports: safeSubmissions.filter(r => 
+      r.status === 'draft'
+    ).length
+  };
+
+  const handleViewReport = (reportId) => {
+    // Find the report to get its details
+    const report = safeSubmissions.find(r => r.id === reportId);
+    
+    if (!report) {
+      console.error('Report not found');
+      return;
+    }
+
+    // Navigate with report ID - the PDF reader will fetch the file
+    navigate(`/secure-pdf-reader?id=${reportId}`);
+  };
+
+  const handleDownloadReport = async (reportId) => {
+    try {
+      const session = JSON.parse(localStorage.getItem('esprim_session') || '{}');
+      const token = session.token;
+
+      const response = await fetch(`http://localhost:5000/api/reports/${reportId}/download`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error('Erreur lors du téléchargement');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rapport_${reportId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Erreur lors du téléchargement du rapport');
+    }
   };
 
   return (
@@ -76,7 +125,6 @@ const StudentDashboard = () => {
               Gérez vos soumissions PFE et consultez la bibliothèque virtuelle
             </p>
           </div>
-
         </div>
 
         {error && (
@@ -89,9 +137,16 @@ const StudentDashboard = () => {
 
         <div className="mt-8">
           {loading ? (
-            <p className="text-center py-12">Chargement de vos rapports...</p>
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Chargement de vos rapports...</p>
+            </div>
           ) : (
-            <SubmissionHistoryTable submissions={safeSubmissions} />
+            <SubmissionHistoryTable 
+              submissions={safeSubmissions}
+              onViewReport={handleViewReport}
+              onDownloadReport={handleDownloadReport}
+            />
           )}
         </div>
       </main>

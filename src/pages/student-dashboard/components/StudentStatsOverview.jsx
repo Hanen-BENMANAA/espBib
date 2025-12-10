@@ -1,60 +1,61 @@
+// src/pages/student-dashboard/components/StudentStatsOverview.jsx
 import React from 'react';
-import Icon from '../../../components/AppIcon';
+import { FileText, Clock, CheckCircle, Edit } from 'lucide-react';
 
 const StudentStatsOverview = ({ stats }) => {
-  const statCards = [
-    {
-      title: 'Rapports soumis',
-      value: stats?.totalSubmissions,
-      icon: 'FileText',
-      color: 'text-primary',
-      bgColor: 'bg-primary/10'
-    },
-    {
-      title: 'Rapports validés',
-      value: stats?.validatedReports,
-      icon: 'CheckCircle',
-      color: 'text-success',
-      bgColor: 'bg-success/10'
-    },
-    {
-      title: 'En attente',
-      value: stats?.pendingReports,
-      icon: 'Clock',
-      color: 'text-warning',
-      bgColor: 'bg-warning/10'
-    },
-    {
-      title: 'Brouillons',
-      value: stats?.draftReports,
-      icon: 'Edit',
-      color: 'text-muted-foreground',
-      bgColor: 'bg-muted/50'
-    }
-  ];
-
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      {statCards?.map((stat, index) => (
-        <div
-          key={index}
-          className="bg-card border border-border rounded-academic p-4 academic-shadow-sm"
-        >
-          <div className="flex items-center space-x-3">
-            <div className={`p-2 rounded-academic ${stat?.bgColor}`}>
-              <Icon name={stat?.icon} size={20} className={stat?.color} />
-            </div>
-            <div>
-              <p className="text-2xl font-heading font-bold text-foreground">
-                {stat?.value}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {stat?.title}
-              </p>
-            </div>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      {/* Rapports soumis */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Rapports soumis</p>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {stats?.totalSubmissions || 0}
+            </p>
           </div>
+          <FileText className="h-12 w-12 text-blue-600" />
         </div>
-      ))}
+      </div>
+
+      {/* En attente */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">En attente</p>
+            <p className="text-3xl font-bold text-orange-600 mt-2">
+              {stats?.pendingReports || 0}
+            </p>
+          </div>
+          <Clock className="h-12 w-12 text-orange-600" />
+        </div>
+      </div>
+
+      {/* Validés */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Validés</p>
+            <p className="text-3xl font-bold text-green-600 mt-2">
+              {stats?.validatedReports || 0}
+            </p>
+          </div>
+          <CheckCircle className="h-12 w-12 text-green-600" />
+        </div>
+      </div>
+
+      {/* Brouillons */}
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Brouillons</p>
+            <p className="text-3xl font-bold text-gray-900 mt-2">
+              {stats?.draftReports || 0}
+            </p>
+          </div>
+          <Edit className="h-12 w-12 text-gray-600" />
+        </div>
+      </div>
     </div>
   );
 };

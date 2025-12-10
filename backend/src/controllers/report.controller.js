@@ -16,14 +16,23 @@ async function submit(req, res, next) {
     }
 
     const userId = req.user.id;
+    
+    // ✅ FIXED: Extract supervisor_id and co_supervisor_id (not names!)
     const {
       title, authorFirstName, authorLastName, studentNumber,
-      email, specialty, academicYear, supervisor, coSupervisor,
+      email, specialty, academicYear, 
+      supervisor_id,      // ✅ ID from form
+      co_supervisor_id,   // ✅ ID from form
       hostCompany, defenseDate, keywords, abstract,
       allowPublicAccess, isConfidential, checklist
     } = req.body;
 
-    console.log('📝 Submit request:', { userId, title, supervisor, coSupervisor });
+    console.log('📝 Submit request:', { 
+      userId, 
+      title, 
+      supervisor_id,      // ✅ Log the IDs
+      co_supervisor_id 
+    });
 
     if (!title?.trim() || !authorFirstName?.trim() || !authorLastName?.trim()) {
       return res.status(400).json({ 
@@ -32,71 +41,157 @@ async function submit(req, res, next) {
       });
     }
 
-    let supervisorId = null;
-    let coSupervisorId = null;
-
-    if (supervisor?.trim()) {
-      const resSup = await db.query(
-        `SELECT id FROM users 
-         WHERE LOWER(TRIM(first_name || ' ' || last_name)) = LOWER(TRIM($1))
-           AND role = 'teacher' 
-         LIMIT 1`,
-        [supervisor.trim()]
-      );
-      supervisorId = resSup.rows[0]?.id || null;
-      console.log('🔍 Looking for supervisor:', supervisor.trim(), '→ Found ID:', supervisorId);
+    // ✅ VALIDATION: supervisor_id is required
+    if (!supervisor_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Supervisor is required'
+      });
     }
 
-    if (coSupervisor?.trim()) {
-      const resCo = await db.query(
-        `SELECT id FROM users 
-         WHERE LOWER(TRIM(first_name || ' ' || last_name)) = LOWER(TRIM($1))
-           AND role = 'teacher' 
-         LIMIT 1`,
-        [coSupervisor.trim()]
+    // ✅ Convert to integers
+    let supervisorIdInt = null;
+    let coSupervisorIdInt = null;
+
+    try {
+      supervisorIdInt = parseInt(supervisor_id);
+      if (isNaN(supervisorIdInt)) {
+        throw new Error('Invalid supervisor_id');
+      }
+      
+      if (co_supervisor_id && co_supervisor_id !== 'null' && co_supervisor_id !== '') {
+        coSupervisorIdInt = parseInt(co_supervisor_id);
+        if (isNaN(coSupervisorIdInt)) {
+          console.warn('⚠️ Invalid co_supervisor_id, setting to null');
+          coSupervisorIdInt = null;
+        }
+      }
+    } catch (err) {
+      console.error('❌ Failed to parse supervisor IDs:', err);
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid supervisor ID format'
+      });
+    }
+
+    console.log('🔢 Parsed IDs - supervisor:', supervisorIdInt, 'co-supervisor:', coSupervisorIdInt);
+
+    // ✅ LOOKUP: Verify supervisor exists and get name
+    let supervisorName = null;
+    let coSupervisorName = null;
+
+    const supRes = await db.query(
+      `SELECT id, first_name, last_name, role 
+       FROM users 
+       WHERE id = $1 AND role IN ('teacher', 'admin')`,
+      [supervisorIdInt]
+    );
+
+    if (supRes.rows.length === 0) {
+      console.error('❌ Supervisor not found with ID:', supervisorIdInt);
+      
+      // Show available supervisors for debugging
+      const available = await db.query(
+        `SELECT id, first_name, last_name, email 
+         FROM users 
+         WHERE role IN ('teacher', 'admin')
+         ORDER BY id`
       );
-      coSupervisorId = resCo.rows[0]?.id || null;
-      console.log('🔍 Looking for co-supervisor:', coSupervisor.trim(), '→ Found ID:', coSupervisorId);
+      console.log('📋 Available supervisors:', available.rows);
+      
+      return res.status(400).json({
+        success: false,
+        message: `Supervisor with ID ${supervisorIdInt} not found. Please select a valid supervisor.`,
+        availableSupervisors: available.rows
+      });
+    }
+
+    supervisorName = `${supRes.rows[0].first_name} ${supRes.rows[0].last_name}`;
+    console.log('✅ Supervisor found:', supervisorName);
+
+    // ✅ LOOKUP: Co-supervisor (optional)
+    if (coSupervisorIdInt) {
+      const coRes = await db.query(
+        `SELECT id, first_name, last_name, role 
+         FROM users 
+         WHERE id = $1 AND role IN ('teacher', 'admin')`,
+        [coSupervisorIdInt]
+      );
+
+      if (coRes.rows.length === 0) {
+        console.warn('⚠️ Co-supervisor not found with ID:', coSupervisorIdInt);
+        coSupervisorIdInt = null; // Set to null if not found
+      } else {
+        coSupervisorName = `${coRes.rows[0].first_name} ${coRes.rows[0].last_name}`;
+        console.log('✅ Co-supervisor found:', coSupervisorName);
+      }
     }
 
     const fileName = req.file.filename;
     const fileUrl = `/uploads/reports/${fileName}`;
     const filePath = `uploads/reports/${fileName}`;
 
+    // ✅ INSERT with both IDs and names
     const result = await db.query(
       `INSERT INTO reports (
         user_id, title, author_first_name, author_last_name, student_number, email,
-        specialty, academic_year, supervisor_id, co_supervisor_id,
+        specialty, academic_year, 
+        supervisor, supervisor_id,           -- ✅ Both name AND id
+        co_supervisor, co_supervisor_id,     -- ✅ Both name AND id
         host_company, defense_date, keywords, abstract,
         allow_public_access, is_confidential,
         file_name, file_path, file_size, file_url,
         status, checklist, submission_date, last_modified
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, NOW(), NOW()
+        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22,
+        $23, $24, NOW(), NOW()
       ) RETURNING *`,
       [
-        userId, title.trim(), authorFirstName.trim(), authorLastName.trim(),
-        studentNumber || null, email, specialty || null, academicYear || null,
-        supervisorId, coSupervisorId, hostCompany || null, defenseDate || null,
-        keywords ? JSON.parse(keywords) : [], abstract || '',
-        allowPublicAccess === 'true' || allowPublicAccess === true,
-        isConfidential === 'true', req.file.originalname, filePath,
-        req.file.size, fileUrl, 'pending_validation',
-        checklist ? JSON.parse(checklist) : {}
+        userId,                                           // $1
+        title.trim(),                                     // $2
+        authorFirstName.trim(),                           // $3
+        authorLastName.trim(),                            // $4
+        studentNumber || null,                            // $5
+        email,                                            // $6
+        specialty || null,                                // $7
+        academicYear || null,                             // $8
+        supervisorName,                                   // $9  ✅ NAME
+        supervisorIdInt,                                  // $10 ✅ ID
+        coSupervisorName,                                 // $11 ✅ NAME
+        coSupervisorIdInt,                                // $12 ✅ ID
+        hostCompany || null,                              // $13
+        defenseDate || null,                              // $14
+        keywords ? JSON.parse(keywords) : [],             // $15
+        abstract || '',                                   // $16
+        allowPublicAccess === 'true' || allowPublicAccess === true, // $17
+        isConfidential === 'true',                        // $18
+        req.file.originalname,                            // $19
+        filePath,                                         // $20
+        req.file.size,                                    // $21
+        fileUrl,                                          // $22
+        'pending_validation',                             // $23
+        checklist ? JSON.parse(checklist) : {}            // $24
       ]
     );
 
     const newReport = result.rows[0];
     console.log('✅ Report created:', newReport.id);
+    console.log('📊 Report data:', {
+      id: newReport.id,
+      title: newReport.title,
+      supervisor: newReport.supervisor,
+      supervisor_id: newReport.supervisor_id,
+      co_supervisor: newReport.co_supervisor,
+      co_supervisor_id: newReport.co_supervisor_id
+    });
 
     // Get student name
     const studentName = `${authorFirstName.trim()} ${authorLastName.trim()}`;
     console.log('👤 Student name:', studentName);
 
     // ✅ CREATE ALERT FOR SUPERVISOR in teacher_alerts table
-    if (supervisorId) {
+    if (supervisorIdInt) {
       try {
         await db.query(
           `INSERT INTO teacher_alerts (
@@ -104,7 +199,7 @@ async function submit(req, res, next) {
             related_report_id, student_id, student_name, read, created_at
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW())`,
           [
-            supervisorId,
+            supervisorIdInt,
             'new_report_submitted',
             'Nouveau rapport soumis',
             `${studentName} a soumis un nouveau rapport: "${title.trim()}"`,
@@ -113,14 +208,14 @@ async function submit(req, res, next) {
             studentName
           ]
         );
-        console.log(`✅ Alert sent to supervisor ${supervisorId}`);
+        console.log(`✅ Alert sent to supervisor ${supervisorIdInt}`);
       } catch (alertErr) {
         console.error('❌ Error creating supervisor alert:', alertErr);
       }
     }
 
     // ✅ CREATE ALERT FOR CO-SUPERVISOR in teacher_alerts table
-    if (coSupervisorId && coSupervisorId !== 'null' && coSupervisorId !== '') {
+    if (coSupervisorIdInt) {
       try {
         await db.query(
           `INSERT INTO teacher_alerts (
@@ -128,7 +223,7 @@ async function submit(req, res, next) {
             related_report_id, student_id, student_name, read, created_at
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW())`,
           [
-            coSupervisorId,
+            coSupervisorIdInt,
             'new_report_submitted',
             'Nouveau rapport soumis',
             `${studentName} a soumis un nouveau rapport: "${title.trim()}"`,
@@ -137,7 +232,7 @@ async function submit(req, res, next) {
             studentName
           ]
         );
-        console.log(`✅ Alert sent to co-supervisor ${coSupervisorId}`);
+        console.log(`✅ Alert sent to co-supervisor ${coSupervisorIdInt}`);
       } catch (alertErr) {
         console.error('❌ Error creating co-supervisor alert:', alertErr);
       }
@@ -151,6 +246,7 @@ async function submit(req, res, next) {
 
   } catch (err) {
     console.error('❌ Submission error:', err);
+    console.error('❌ Stack trace:', err.stack);
     next(err);
   }
 }
@@ -158,9 +254,15 @@ async function submit(req, res, next) {
 async function mySubmissions(req, res, next) {
   try {
     const result = await db.query(
-      `SELECT r.*, u.email AS student_email
+      `SELECT 
+         r.*,
+         u.email AS student_email,
+         s.first_name || ' ' || s.last_name AS supervisor_name,
+         cs.first_name || ' ' || cs.last_name AS co_supervisor_name
        FROM reports r
        JOIN users u ON r.user_id = u.id
+       LEFT JOIN users s ON r.supervisor_id = s.id
+       LEFT JOIN users cs ON r.co_supervisor_id = cs.id
        WHERE r.user_id = $1
        ORDER BY submission_date DESC`,
       [req.user.id]
@@ -179,9 +281,13 @@ async function getAssignedReports(req, res, next) {
          r.*,
          u.first_name AS author_first_name, 
          u.last_name AS author_last_name,
-         u.email AS student_email
+         u.email AS student_email,
+         s.first_name || ' ' || s.last_name AS supervisor_name,
+         cs.first_name || ' ' || cs.last_name AS co_supervisor_name
        FROM reports r
        JOIN users u ON r.user_id = u.id
+       LEFT JOIN users s ON r.supervisor_id = s.id
+       LEFT JOIN users cs ON r.co_supervisor_id = cs.id
        WHERE r.supervisor_id = $1 OR r.co_supervisor_id = $1
        ORDER BY r.submission_date DESC`,
       [req.user.id]
@@ -199,9 +305,13 @@ async function getPendingReports(req, res, next) {
          r.*,
          u.first_name AS author_first_name, 
          u.last_name AS author_last_name,
-         u.email AS student_email
+         u.email AS student_email,
+         s.first_name || ' ' || s.last_name AS supervisor_name,
+         cs.first_name || ' ' || cs.last_name AS co_supervisor_name
        FROM reports r
        JOIN users u ON r.user_id = u.id
+       LEFT JOIN users s ON r.supervisor_id = s.id
+       LEFT JOIN users cs ON r.co_supervisor_id = cs.id
        WHERE (r.supervisor_id = $1 OR r.co_supervisor_id = $1)
          AND r.status = 'pending_validation'
        ORDER BY r.submission_date ASC`,

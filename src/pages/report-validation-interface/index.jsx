@@ -2,17 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
 
-import Header from '../../components/ui/Header';                 // ← HEADER UNIVERSEL (comme le dashboard)
+import Header from '../../components/ui/Header';
 import BreadcrumbTrail from '../../components/ui/BreadcrumbTrail';
 import Button from '../../components/ui/Button';
 
-import PDFViewer from './components/PDFViewer';
+import PDFViewer from './components/PDFViewer';  // ← This one will be updated next
 import ValidationChecklist from './components/ValidationChecklist';
 import CommentSystem from './components/CommentSystem';
 import ValidationActions from './components/ValidationActions';
 import ValidationHistory from './components/ValidationHistory';
 
 import { teacherReportsAPI } from '../../services/api';
+import { getToken } from '../../lib/auth';
 
 const ReportValidationInterface = () => {
   const location = useLocation();
@@ -58,6 +59,12 @@ const ReportValidationInterface = () => {
 
       const report = response.data;
 
+      // CRITICAL: Generate secure streaming URL
+      const token = getToken();
+      const securePdfUrl = token 
+        ? `http://localhost:5000/api/secure-pdf/view/${report.id}?token=${token}`
+        : null;
+
       setReportData({
         id: report.id,
         title: report.title || 'Sans titre',
@@ -67,6 +74,7 @@ const ReportValidationInterface = () => {
         submissionDate: new Date(report.submission_date),
         fileSize: report.file_size ? `${(report.file_size / 1024 / 1024).toFixed(2)} MB` : 'N/A',
         file_url: report.file_url,
+        secure_url: securePdfUrl,  // ← THIS IS THE KEY
         status: report.status,
         validatedBy: report.validated_by_name,
         validatedAt: report.validated_at
@@ -80,93 +88,22 @@ const ReportValidationInterface = () => {
         updatedAt: c.updated_at ? new Date(c.updated_at) : null
       })));
 
-      setValidationHistory((report.validation_history || []).map(h => ({
-        id: h.id,
-        action: h.action,
-        message: h.message || '',
-        teacher: h.teacher_name || 'Enseignant',
-        date: new Date(h.created_at)
-      })));
-
-      setChecklistData(report.checklist || {});
+      setValidationHistory(report.validation_history || []);
+      setChecklistData(report.checklist_data || {});
 
     } catch (err) {
-      console.error('Error loading report:', err);
+      console.error('Failed to load report:', err);
       setError(err.message || 'Impossible de charger le rapport');
     } finally {
       setLoading(false);
     }
   };
 
-  const getChecklistProgress = () => {
-    const sections = Object.values(checklistData);
-    if (sections.length === 0) return 0;
-    let total = 0, completed = 0;
-    sections.forEach(section => {
-      const items = Object.values(section);
-      total += items.length;
-      completed += items.filter(Boolean).length;
-    });
-    return total > 0 ? Math.round((completed / total) * 100) : 0;
-  };
-
-  const checklistProgress = getChecklistProgress();
-
-  // ──────── HANDLERS (inchangés) ────────
-  const handleChecklistUpdate = async (updatedChecklist) => {
-    setChecklistData(updatedChecklist);
+  const handleValidation = async (decision, comment = '') => {
+    setSaving(true);
     try {
-      setSaving(true);
-      await teacherReportsAPI.updateChecklist(reportId, updatedChecklist);
-    } catch (err) {
-      alert('Erreur lors de la sauvegarde de la checklist');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleAddComment = async (content) => {
-    try {
-      const res = await teacherReportsAPI.addComment(reportId, content);
-      if (res.success) {
-        setComments(prev => [...prev, {
-          id: res.data.id,
-          content: res.data.content,
-          author: res.data.teacher_name || currentUser.name,
-          date: new Date(res.data.created_at)
-        }]);
-      }
-    } catch (err) {
-      alert('Erreur lors de l\'ajout du commentaire');
-    }
-  };
-
-  const handleUpdateComment = async (id, content) => {
-    try {
-      await teacherReportsAPI.updateComment(id, { content });
-      setComments(prev => prev.map(c => c.id === id ? { ...c, content, updatedAt: new Date() } : c));
-    } catch (err) {
-      alert('Erreur lors de la mise à jour du commentaire');
-    }
-  };
-
-  const handleDeleteComment = async (id) => {
-    try {
-      await teacherReportsAPI.deleteComment(id);
-      setComments(prev => prev.filter(c => c.id !== id));
-    } catch (err) {
-      alert('Erreur lors de la suppression du commentaire');
-    }
-  };
-
-  const handleValidation = async (decision, comment) => {
-    try {
-      setSaving(true);
-      const res = await teacherReportsAPI.validateReport(reportId, { decision, comments: comment });
-      if (res.success) {
-        alert(`Rapport ${decision === 'validated' ? 'validé' : decision === 'rejected' ? 'rejeté' : 'mis en révision'} !`);
-        navigate('/teacher/dashboard');
-      }
+      await teacherReportsAPI.validateReport(reportId, { decision, comments: comment });
+      await fetchReport(); // Refresh
     } catch (err) {
       alert('Erreur lors de la validation');
     } finally {
@@ -174,13 +111,33 @@ const ReportValidationInterface = () => {
     }
   };
 
-  // ──────── RENDU ────────
+  const handleChecklistUpdate = (newData) => {
+    setChecklistData(newData);
+    // Optionally persist to backend
+  };
+
+  const handleAddComment = (comment) => {
+    setComments(prev => [...prev, { ...comment, id: Date.now() }]);
+  };
+
+  const handleUpdateComment = (id, updates) => {
+    setComments(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  const handleDeleteComment = (id) => {
+    setComments(prev => prev.filter(c => c.id !== id));
+  };
+
+  const checklistProgress = Object.values(checklistData).flatMap(section =>
+    Object.values(section || {})
+  ).filter(Boolean).length * 100 / 25; // ~25 items
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Chargement du rapport…</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p>Chargement du rapport...</p>
         </div>
       </div>
     );
@@ -189,10 +146,12 @@ const ReportValidationInterface = () => {
   if (error || !reportData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md p-8">
-          <h2 className="text-2xl font-bold mb-4">Erreur</h2>
-          <p className="text-gray-600 mb-6">{error || 'Rapport introuvable'}</p>
-          <Button onClick={() => navigate('/teacher/dashboard')}>Retour au tableau de bord</Button>
+        <div className="text-center p-8 bg-white rounded-xl shadow">
+          <h2 className="text-2xl font-bold text-red-600 mb-4">Erreur</h2>
+          <p>{error || 'Rapport introuvable'}</p>
+          <Button onClick={() => navigate('/teacher/dashboard')} className="mt-4">
+            Retour au tableau de bord
+          </Button>
         </div>
       </div>
     );
@@ -200,43 +159,43 @@ const ReportValidationInterface = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* HEADER UNIVERSEL – exactement le même que le dashboard */}
       <Header />
 
-      {/* Contenu principal */}
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <BreadcrumbTrail customBreadcrumbs={[
-          { label: 'Accueil', path: '/' },
-          { label: 'Tableau de bord', path: '/teacher/dashboard' },
-          { label: 'Validation du rapport', path: null }
-        ]} />
+        {/* Header */}
+        <div className="mb-8">
+          <BreadcrumbTrail
+            items={[
+              { label: 'Tableau de bord', href: '/teacher/dashboard' },
+              { label: 'Validation', href: '/teacher/dashboard' },
+              { label: reportData.title }
+            ]}
+          />
 
-        <div className="mb-6 flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Validation du Rapport</h1>
-            <p className="text-gray-600">Révision du projet de fin d'études</p>
+          <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">{reportData.title}</h1>
+                <p className="text-gray-600 mt-1">
+                  Par <strong>{reportData.studentName}</strong> • {reportData.specialty}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-gray-500">Soumis le</div>
+                <div className="font-medium">{reportData.submissionDate.toLocaleDateString('fr-FR')}</div>
+              </div>
+            </div>
           </div>
-          <Button variant="ghost" onClick={() => navigate('/teacher/dashboard')}>
-            Retour
-          </Button>
         </div>
 
-        {/* Report Info Card */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
-          <h2 className="text-2xl font-semibold mb-4">{reportData.title}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-            <div><span className="font-medium">Étudiant :</span> {reportData.studentName}</div>
-            <div><span className="font-medium">Spécialité :</span> {reportData.specialty}</div>
-            <div><span className="font-medium">Soumis le :</span> {reportData.submissionDate.toLocaleDateString('fr-FR')}</div>
-            <div><span className="font-medium">Taille :</span> {reportData.fileSize}</div>
-          </div>
-        </div>
-
-        {/* Layout principal */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Main Grid */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* PDF Viewer – 2 colonnes */}
           <div className="xl:col-span-2">
-            <PDFViewer reportData={reportData} reviewerInfo={currentUser} />
+            <PDFViewer 
+              reportData={reportData} 
+              reviewerInfo={currentUser} 
+            />
           </div>
 
           {/* Sidebar droite */}
@@ -255,7 +214,7 @@ const ReportValidationInterface = () => {
                 {activeTab === 'validation' ? (
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="text-3xl font-bold text-blue-600">{checklistProgress}%</div>
+                      <div className="text-3xl font-bold text-blue-600">{Math.round(checklistProgress)}%</div>
                       <div className="text-xs text-gray-600">Checklist</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
