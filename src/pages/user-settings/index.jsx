@@ -1,328 +1,213 @@
-// src/pages/user-settings/index.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Header from '../../components/ui/Header';
-import Button from '../../components/ui/Button';
-import Icon from '../../components/AppIcon';
-import { getUser } from '../../lib/auth';
+import { User, Lock, Bell, Shield, ChevronRight } from 'lucide-react';
+
+// Import your 2FA component
+import TwoFactorSettings from './../../components/TwoFactorSettings';
 
 const UserSettingsPage = () => {
-  const navigate = useNavigate();
-  const user = getUser();
-
-  const [settings, setSettings] = useState({
-    emailNotifications: true,
-    reportUpdates: true,
-    commentNotifications: true,
-    validationAlerts: true,
-    language: 'fr',
-    theme: 'light'
+  const [activeTab, setActiveTab] = useState('security');
+  const [user, setUser] = useState(() => {
+    const session = JSON.parse(localStorage.getItem('esprim_session') || '{}');
+    return {
+      name: session.userName || '',
+      email: session.userEmail || '',
+      role: session.userRole || 'student'
+    };
   });
+{activeTab === '2fa' && <TwoFactorSettings />}
 
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const tabs = [
+    { id: 'profile', label: 'Profile', icon: User },
+    { id: 'security', label: 'Security', icon: Lock },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+  ];
 
-  const handleToggle = (key) => {
-    setSettings(prev => ({ ...prev, [key]: !prev[key] }));
-    setMessage({ 
-      type: 'info', 
-      text: 'Paramètre modifié. N\'oubliez pas de sauvegarder.' 
-    });
-  };
-
-  const handleSave = () => {
-    // Save to localStorage for now (can be extended to backend)
-    localStorage.setItem('user_settings', JSON.stringify(settings));
-    setMessage({ 
-      type: 'success', 
-      text: 'Paramètres enregistrés avec succès !' 
-    });
-  };
-
-  const ToggleSwitch = ({ enabled, onChange, label, description }) => (
-    <div className="flex items-center justify-between py-4 border-b border-gray-100 last:border-0">
-      <div className="flex-1">
-        <div className="font-medium text-gray-900 mb-1">{label}</div>
-        <div className="text-sm text-gray-600">{description}</div>
-      </div>
-      
-      <button
-        onClick={onChange}
-        className={`relative w-12 h-6 rounded-full transition-all duration-200 ${
-          enabled ? 'bg-red-600' : 'bg-gray-300'
-        }`}
-      >
-        <div
-          className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-200 ${
-            enabled ? 'translate-x-7' : 'translate-x-1'
-          }`}
-        />
-      </button>
-    </div>
-  );
+  // Show 2FA tab only for teachers and admins
+  if (user.role === 'teacher' || user.role === 'admin') {
+    tabs.push({ id: '2fa', label: 'Two-Factor Auth', icon: Shield });
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
-
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
-        >
-          <Icon name="ChevronLeft" size={20} />
-          <span className="text-sm font-medium">Retour</span>
-        </button>
-
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-6">
-            <div className="w-24 h-24 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <Icon name="Settings" size={48} className="text-white" />
-            </div>
-            
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Paramètres
-              </h1>
-              <p className="text-gray-600">
-                Personnalisez votre expérience ESPRIM
-              </p>
-            </div>
-          </div>
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+          <p className="mt-1 text-sm text-gray-600">
+            Manage your account settings and preferences
+          </p>
         </div>
+      </div>
 
-        {/* Message Alert */}
-        {message.text && (
-          <div className={`mb-6 p-4 rounded-xl border-2 ${
-            message.type === 'success' 
-              ? 'bg-green-50 border-green-200' 
-              : message.type === 'info'
-              ? 'bg-blue-50 border-blue-200'
-              : 'bg-red-50 border-red-200'
-          }`}>
-            <div className="flex items-center gap-3">
-              <Icon 
-                name={
-                  message.type === 'success' ? 'CheckCircle' : 
-                  message.type === 'info' ? 'Info' : 
-                  'AlertCircle'
-                } 
-                size={24} 
-                className={
-                  message.type === 'success' ? 'text-green-600' : 
-                  message.type === 'info' ? 'text-blue-600' : 
-                  'text-red-600'
-                }
-              />
-              <p className={`text-sm font-medium ${
-                message.type === 'success' ? 'text-green-800' : 
-                message.type === 'info' ? 'text-blue-800' : 
-                'text-red-800'
-              }`}>
-                {message.text}
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-6">
-
-          {/* Notifications Settings */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Icon name="Bell" size={20} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Notifications</h2>
-                  <p className="text-sm text-gray-600">Gérez vos préférences de notification</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <ToggleSwitch
-                enabled={settings.emailNotifications}
-                onChange={() => handleToggle('emailNotifications')}
-                label="Notifications par Email"
-                description="Recevoir des notifications par email"
-              />
-              
-              <ToggleSwitch
-                enabled={settings.reportUpdates}
-                onChange={() => handleToggle('reportUpdates')}
-                label="Mises à jour des rapports"
-                description="Notifications sur les changements de statut"
-              />
-              
-              <ToggleSwitch
-                enabled={settings.commentNotifications}
-                onChange={() => handleToggle('commentNotifications')}
-                label="Commentaires"
-                description="Alertes pour les nouveaux commentaires"
-              />
-              
-              <ToggleSwitch
-                enabled={settings.validationAlerts}
-                onChange={() => handleToggle('validationAlerts')}
-                label="Alertes de validation"
-                description="Notifications de validation/rejet"
-              />
-            </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex gap-8">
+          {/* Sidebar */}
+          <div className="w-64 flex-shrink-0">
+            <nav className="space-y-1">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`
+                      w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors
+                      ${activeTab === tab.id
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'text-gray-700 hover:bg-gray-100'
+                      }
+                    `}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon size={20} />
+                      <span>{tab.label}</span>
+                    </div>
+                    <ChevronRight size={16} className={activeTab === tab.id ? 'text-blue-700' : 'text-gray-400'} />
+                  </button>
+                );
+              })}
+            </nav>
           </div>
 
-          {/* Preferences */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
-                  <Icon name="Sliders" size={20} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Préférences</h2>
-                  <p className="text-sm text-gray-600">Personnalisez l'interface</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Language */}
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-3">
-                  Langue de l'interface
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { value: 'fr', label: 'Français', flag: '🇫🇷' },
-                    { value: 'en', label: 'English', flag: '🇬🇧' },
-                    { value: 'ar', label: 'العربية', flag: '🇹🇳' }
-                  ].map(lang => (
-                    <button
-                      key={lang.value}
-                      onClick={() => {
-                        setSettings(prev => ({ ...prev, language: lang.value }));
-                        setMessage({ type: 'info', text: 'Langue modifiée. Sauvegardez pour appliquer.' });
-                      }}
-                      className={`flex flex-col items-center gap-2 p-4 border-2 rounded-xl transition-all ${
-                        settings.language === lang.value
-                          ? 'border-red-600 bg-red-50 shadow-md'
-                          : 'border-gray-200 hover:border-red-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="text-3xl">{lang.flag}</span>
-                      <span className={`text-sm font-medium ${
-                        settings.language === lang.value ? 'text-red-600' : 'text-gray-700'
-                      }`}>
-                        {lang.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Theme */}
-              <div>
-                <label className="block text-sm font-bold text-gray-900 mb-3">
-                  Thème d'affichage
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { value: 'light', label: 'Clair', icon: 'Sun' },
-                    { value: 'dark', label: 'Sombre', icon: 'Moon' },
-                    { value: 'auto', label: 'Auto', icon: 'Laptop' }
-                  ].map(theme => (
-                    <button
-                      key={theme.value}
-                      onClick={() => {
-                        setSettings(prev => ({ ...prev, theme: theme.value }));
-                        setMessage({ type: 'info', text: 'Thème modifié. Sauvegardez pour appliquer.' });
-                      }}
-                      className={`flex flex-col items-center gap-3 p-4 border-2 rounded-xl transition-all ${
-                        settings.theme === theme.value
-                          ? 'border-red-600 bg-red-50 shadow-md'
-                          : 'border-gray-200 hover:border-red-300 hover:bg-gray-50'
-                      }`}
-                    >
-                      <Icon 
-                        name={theme.icon} 
-                        size={32} 
-                        className={settings.theme === theme.value ? 'text-red-600' : 'text-gray-600'}
-                      />
-                      <span className={`text-sm font-medium ${
-                        settings.theme === theme.value ? 'text-red-600' : 'text-gray-700'
-                      }`}>
-                        {theme.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Security */}
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
-                  <Icon name="Shield" size={20} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Sécurité</h2>
-                  <p className="text-sm text-gray-600">Protégez votre compte</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
-                <div className="flex items-start gap-3">
-                  <Icon name="CheckCircle" size={20} className="text-green-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm text-green-800">
-                    <p className="font-medium mb-1">Compte sécurisé</p>
-                    <p>Votre compte est protégé par un mot de passe fort et une authentification sécurisée.</p>
+          {/* Content Area */}
+          <div className="flex-1">
+            {activeTab === 'profile' && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Profile Information</h2>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={user.name}
+                      disabled
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={user.email}
+                      disabled
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Role
+                    </label>
+                    <input
+                      type="text"
+                      value={user.role}
+                      disabled
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 capitalize"
+                    />
                   </div>
                 </div>
               </div>
+            )}
 
-              <Button
-                variant="outline"
-                iconName="Key"
-                iconPosition="left"
-                onClick={() => navigate('/change-password')}
-                fullWidth
-                className="border-gray-300 hover:bg-gray-50"
-              >
-                Modifier le mot de passe
-              </Button>
-            </div>
+            {activeTab === 'security' && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Security Settings</h2>
+                <div className="space-y-6">
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h3 className="font-medium text-blue-900 mb-2">Password Management</h3>
+                    <p className="text-sm text-blue-800 mb-4">
+                      Your password is managed through the institutional authentication system.
+                    </p>
+                    <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                      Request Password Reset
+                    </button>
+                  </div>
+
+                  <div className="p-4 border border-gray-200 rounded-lg">
+                    <h3 className="font-medium text-gray-900 mb-2">Active Sessions</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      You are currently signed in on this device.
+                    </p>
+                    <button className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">
+                      Sign Out All Devices
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'notifications' && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Notification Preferences</h2>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div>
+                      <h3 className="font-medium text-gray-900">Email Notifications</h3>
+                      <p className="text-sm text-gray-600">Receive email updates about your reports</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div>
+                      <h3 className="font-medium text-gray-900">Report Status Updates</h3>
+                      <p className="text-sm text-gray-600">Get notified when report status changes</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div>
+                      <h3 className="font-medium text-gray-900">Comments & Mentions</h3>
+                      <p className="text-sm text-gray-600">Notifications when someone comments or mentions you</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === '2fa' && (
+              <div>
+                {/* 
+                  This is where you'll render your TwoFactorSettings component
+                  Uncomment this when you've imported the component:
+                */}
+                {/* <TwoFactorSettings /> */}
+                
+                {/* Placeholder for now */}
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Shield className="text-blue-600" size={24} />
+                    <h2 className="text-xl font-semibold text-gray-900">Two-Factor Authentication</h2>
+                  </div>
+                  <p className="text-gray-600 mb-6">
+                    Add an extra layer of security to your account. When enabled, you'll need to provide 
+                    a verification code in addition to your password when signing in.
+                  </p>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      Import and use the TwoFactorSettings component here to enable full 2FA functionality.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-
         </div>
-
-        {/* Save Button */}
-        <div className="mt-6 flex justify-end gap-3">
-          <Button
-            variant="outline"
-            onClick={() => navigate(-1)}
-          >
-            Annuler
-          </Button>
-          <Button
-            variant="default"
-            size="lg"
-            iconName="Save"
-            iconPosition="left"
-            onClick={handleSave}
-            className="bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/30"
-          >
-            Enregistrer les modifications
-          </Button>
-        </div>
-
-      </main>
+      </div>
     </div>
   );
 };

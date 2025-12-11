@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import Button from '../../../components/ui/Button';
@@ -80,21 +80,6 @@ const ValidationChecklist = ({
     }
   ];
 
-  const handleCheckboxChange = (sectionId, itemKey, checked) => {
-    if (isReadOnly) return;
-
-    const updatedChecklist = {
-      ...checklist,
-      [sectionId]: {
-        ...checklist?.[sectionId],
-        [itemKey]: checked
-      }
-    };
-    
-    setChecklist(updatedChecklist);
-    onChecklistUpdate(updatedChecklist);
-  };
-
   const getSectionProgress = (sectionId) => {
     const section = checklist?.[sectionId];
     const sectionConfig = checklistSections?.find(s => s?.id === sectionId);
@@ -124,6 +109,76 @@ const ValidationChecklist = ({
       percentage: Math.round((totalCompleted / totalRequired) * 100)
     };
   };
+
+  // CORRECTION: Envoyer les données avec le pourcentage au parent
+  const handleCheckboxChange = (sectionId, itemKey, checked) => {
+    if (isReadOnly) return;
+
+    const updatedChecklist = {
+      ...checklist,
+      [sectionId]: {
+        ...checklist?.[sectionId],
+        [itemKey]: checked
+      }
+    };
+    
+    setChecklist(updatedChecklist);
+    
+    // Calculer la progression AVANT d'envoyer au parent
+    let totalRequired = 0;
+    let totalCompleted = 0;
+    
+    checklistSections?.forEach(section => {
+      const sectionData = updatedChecklist?.[section?.id];
+      const sectionConfig = checklistSections?.find(s => s?.id === section?.id);
+      const requiredItems = sectionConfig?.items?.filter(item => item?.required);
+      const completedRequired = requiredItems?.filter(item => sectionData?.[item?.key])?.length;
+      
+      totalRequired += requiredItems?.length;
+      totalCompleted += completedRequired;
+    });
+    
+    const percentage = Math.round((totalCompleted / totalRequired) * 100);
+    
+    // Envoyer les données ET le pourcentage
+    onChecklistUpdate({
+      checklist: updatedChecklist,
+      progress: {
+        completed: totalCompleted,
+        total: totalRequired,
+        percentage: percentage
+      }
+    });
+  };
+
+  // CORRECTION: Notifier le parent avec la progression calculée des données initiales
+  useEffect(() => {
+    // Calculer la progression avec les données qui viennent du backend (checklistData prop)
+    let totalRequired = 0;
+    let totalCompleted = 0;
+    
+    checklistSections?.forEach(section => {
+      const sectionData = checklist?.[section?.id]; // Utilise checklist (state local initialisé)
+      const sectionConfig = checklistSections?.find(s => s?.id === section?.id);
+      const requiredItems = sectionConfig?.items?.filter(item => item?.required);
+      const completedRequired = requiredItems?.filter(item => sectionData?.[item?.key])?.length;
+      
+      totalRequired += requiredItems?.length;
+      totalCompleted += completedRequired;
+    });
+    
+    const percentage = totalRequired > 0 ? Math.round((totalCompleted / totalRequired) * 100) : 0;
+    
+    // Envoyer la progression calculée au parent
+    onChecklistUpdate({
+      checklist: checklist,
+      progress: {
+        completed: totalCompleted,
+        total: totalRequired,
+        percentage: percentage
+      }
+    });
+  }, []); // Exécute une seule fois au montage, avec les données initiales
 
   const overallProgress = getOverallProgress();
 
@@ -255,7 +310,14 @@ const ValidationChecklist = ({
                   });
                 });
                 setChecklist(resetChecklist);
-                onChecklistUpdate(resetChecklist);
+                onChecklistUpdate({
+                  checklist: resetChecklist,
+                  progress: {
+                    completed: 0,
+                    total: getOverallProgress().total,
+                    percentage: 0
+                  }
+                });
               }}
             >
               <Icon name="RotateCcw" size={14} className="mr-2" />

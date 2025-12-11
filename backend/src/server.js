@@ -217,12 +217,12 @@ app.use('/api/favorites', favoritesRoutes);
 app.use('/api/teacher-alerts', teacherAlertsRoutes);
 
 // API 404
-app.use('/api/*', (req, res) => {
+app.use(/^\/api\/.*$/, (req, res) => {
   res.status(404).json({ error: 'API route not found', path: req.path });
 });
 
 // Uploads 404 with helpful debugging
-app.use('/uploads/*', (req, res) => {
+app.use(/^\/uploads\/.*$/, (req, res) => {
   const requestedPath = path.join(
     uploadsPath,
     req.path.replace('/uploads/', '')

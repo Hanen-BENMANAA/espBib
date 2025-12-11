@@ -55,7 +55,7 @@ const normalizeFileUrl = (fileUrl) => {
 const testPdfAccess = async (fileUrl) => {
   try {
     const response = await fetch(fileUrl, { method: 'HEAD' });
-    console.log('🔍 PDF accessibility test:', {
+    console.log('📄 PDF accessibility test:', {
       url: fileUrl,
       status: response.status,
       contentType: response.headers.get('content-type'),
@@ -71,8 +71,70 @@ const testPdfAccess = async (fileUrl) => {
 // ==================== AUTH API ====================
 
 export const authAPI = {
+  /**
+   * Login with email and password
+   */
   login: (credentials) => api.post('/auth/login', credentials).then(r => r.data),
   
+  /**
+   * Verify 2FA code - THIS WAS MISSING!
+   */
+  verify2FA: ({ userId, code, method }) => {
+    console.log('[API] verify2FA called with:', { userId, code, method });
+    return api.post('/auth/2fa/verify', { userId, code, method }).then(r => r.data);
+  },
+
+  /**
+   * Send SMS verification code
+   */
+  sendSMSCode: (userId) => {
+    console.log('[API] sendSMSCode called for:', userId);
+    return api.post('/auth/2fa/send-sms', { userId }).then(r => r.data);
+  },
+
+  /**
+   * Setup 2FA (generate QR code)
+   */
+  setup2FA: (userId, method) => {
+    console.log('[API] setup2FA called:', { userId, method });
+    return api.post('/auth/2fa/setup', { userId, method }).then(r => r.data);
+  },
+
+  /**
+   * Get 2FA status
+   */
+  get2FAStatus: () => {
+    console.log('[API] get2FAStatus called');
+    return api.get('/auth/2fa/status').then(r => r.data);
+  },
+
+  /**
+   * Update phone number for SMS 2FA
+   */
+  updatePhoneNumber: (phoneNumber) => {
+    console.log('[API] updatePhoneNumber called');
+    return api.post('/auth/2fa/update-phone', { phoneNumber }).then(r => r.data);
+  },
+
+  /**
+   * Disable 2FA
+   */
+  disable2FA: (method, password) => {
+    console.log('[API] disable2FA called:', method);
+    return api.post('/auth/2fa/disable', { method, password }).then(r => r.data);
+  },
+
+  /**
+   * Verify setup code for authenticator app
+   */
+  verifySetup: (userId, code, method) => {
+    console.log('[API] verifySetup called');
+    return api.post('/auth/2fa/verify-setup', { userId, code, method }).then(r => r.data);
+  },
+
+  /**
+   * Logout
+   */
   logout: () => {
     localStorage.removeItem('esprim_session');
     window.location.href = '/login';

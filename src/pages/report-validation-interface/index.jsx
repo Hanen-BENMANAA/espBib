@@ -6,7 +6,7 @@ import Header from '../../components/ui/Header';
 import BreadcrumbTrail from '../../components/ui/BreadcrumbTrail';
 import Button from '../../components/ui/Button';
 
-import PDFViewer from './components/PDFViewer';  // ← This one will be updated next
+import PDFViewer from './components/PDFViewer';
 import ValidationChecklist from './components/ValidationChecklist';
 import CommentSystem from './components/CommentSystem';
 import ValidationActions from './components/ValidationActions';
@@ -33,6 +33,7 @@ const ReportValidationInterface = () => {
   const [comments, setComments] = useState([]);
   const [validationHistory, setValidationHistory] = useState([]);
   const [checklistData, setChecklistData] = useState({});
+  const [checklistProgress, setChecklistProgress] = useState(0); // ← NOUVEAU: État séparé pour la progression
   const [saving, setSaving] = useState(false);
 
   const currentUser = {
@@ -74,7 +75,7 @@ const ReportValidationInterface = () => {
         submissionDate: new Date(report.submission_date),
         fileSize: report.file_size ? `${(report.file_size / 1024 / 1024).toFixed(2)} MB` : 'N/A',
         file_url: report.file_url,
-        secure_url: securePdfUrl,  // ← THIS IS THE KEY
+        secure_url: securePdfUrl,
         status: report.status,
         validatedBy: report.validated_by_name,
         validatedAt: report.validated_at
@@ -89,7 +90,19 @@ const ReportValidationInterface = () => {
       })));
 
       setValidationHistory(report.validation_history || []);
-      setChecklistData(report.checklist_data || {});
+      
+      // ✅ Restaurer les données du checklist ET la progression
+      const savedChecklist = report.checklist_data || {};
+      setChecklistData(savedChecklist);
+      
+      // Restaurer la progression sauvegardée
+      const savedProgress = report.checklist_progress !== undefined 
+        ? report.checklist_progress 
+        : 0;
+      setChecklistProgress(savedProgress);
+      
+      console.log('📊 Checklist restaurée:', savedChecklist);
+      console.log('📈 Progression restaurée:', savedProgress + '%');
 
     } catch (err) {
       console.error('Failed to load report:', err);
@@ -111,9 +124,25 @@ const ReportValidationInterface = () => {
     }
   };
 
-  const handleChecklistUpdate = (newData) => {
-    setChecklistData(newData);
-    // Optionally persist to backend
+  // ✅ CORRECTION: Recevoir les données avec la progression et les sauvegarder
+  const handleChecklistUpdate = async (data) => {
+    // data contient maintenant { checklist, progress }
+    setChecklistData(data.checklist);
+    setChecklistProgress(data.progress.percentage);
+    
+    console.log('💾 Sauvegarde checklist:', data.progress.percentage + '%');
+    
+    // ✅ Sauvegarder automatiquement dans la base de données
+    try {
+      await teacherReportsAPI.updateChecklist(reportId, {
+        checklist: data.checklist,
+        progress: data.progress.percentage
+      });
+      console.log('✅ Checklist sauvegardée avec succès');
+    } catch (err) {
+      console.error('❌ Erreur lors de la sauvegarde du checklist:', err);
+      // On n'affiche pas d'alerte pour ne pas perturber l'UX
+    }
   };
 
   const handleAddComment = (comment) => {
@@ -127,10 +156,6 @@ const ReportValidationInterface = () => {
   const handleDeleteComment = (id) => {
     setComments(prev => prev.filter(c => c.id !== id));
   };
-
-  const checklistProgress = Object.values(checklistData).flatMap(section =>
-    Object.values(section || {})
-  ).filter(Boolean).length * 100 / 25; // ~25 items
 
   if (loading) {
     return (
@@ -233,7 +258,7 @@ const ReportValidationInterface = () => {
               onValidate={(data) => handleValidation('validated', data.comment)}
               onReject={(data) => handleValidation('rejected', data.comment)}
               onRequestRevision={(data) => handleValidation('revision_requested', data.comment)}
-              checklistProgress={checklistProgress}
+              checklistProgress={checklistProgress} // ← Passe maintenant la vraie progression
               hasComments={comments.length > 0}
             />
           </div>

@@ -9,23 +9,10 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.0",
-    "express": "^4.18.2",
-    "express-rate-limit": "^6.7.0",
-    "helmet": "^6.0.0",
     "jsonwebtoken": "^9.0.0",
-    "lodash": "^4.17.21",
-    "morgan": "^1.10.1",
-    "multer": "^1.4.5-lts.1",
-    "nodemailer": "^7.0.10",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^5.4.449",
-    "pg": "^8.11.0",
-    "pg-hstore": "^2.3.4",
-    "react-pdf": "^10.2.0",
-    "screenfull": "^6.0.2",
-    "sequelize": "^6.32.1"
+    "qrcode": "^1.5.4",
+    "speakeasy": "^2.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
