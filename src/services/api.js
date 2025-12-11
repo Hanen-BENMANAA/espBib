@@ -277,27 +277,104 @@ export const notificationsAPI = {
 export const favoritesAPI = {
   // Get user's favorites
   getMyFavorites: async () => {
-    const response = await api.get('/favorites');
-    
-    // Normalize file URLs
-    if (response.data.success && response.data.data) {
-      response.data.data = response.data.data.map(report => ({
+    try {
+      console.log('📚 API: Fetching favorites...');
+      const response = await api.get('/favorites');
+      
+      console.log('📦 API Response:', {
+        success: response.data?.success,
+        hasData: !!response.data?.data,
+        dataType: typeof response.data?.data,
+        hasFavorites: !!response.data?.data?.favorites,
+        fullResponse: response.data
+      });
+      
+      // ✅ FIX: Handle the nested structure correctly
+      let favoritesArray = [];
+      
+      if (response.data?.success && response.data?.data) {
+        // Backend returns: { success: true, data: { favorites: [...] } }
+        if (Array.isArray(response.data.data.favorites)) {
+          favoritesArray = response.data.data.favorites;
+        }
+        // Fallback: if data itself is an array
+        else if (Array.isArray(response.data.data)) {
+          favoritesArray = response.data.data;
+        }
+      }
+      
+      console.log('✅ Extracted favorites array:', favoritesArray.length, 'items');
+      
+      // Normalize file URLs
+      const normalizedFavorites = favoritesArray.map(report => ({
         ...report,
         file_url: normalizeFileUrl(report.file_url)
       }));
+      
+      // ✅ IMPORTANT: Return in the same format as backend
+      return {
+        success: true,
+        data: {
+          favorites: normalizedFavorites
+        },
+        count: normalizedFavorites.length
+      };
+      
+    } catch (error) {
+      console.error('❌ API Error fetching favorites:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Return empty array on error
+      return {
+        success: false,
+        data: {
+          favorites: []
+        },
+        count: 0,
+        error: error.message
+      };
     }
-    
-    return response.data;
   },
   
   // Add to favorites
-  addFavorite: (reportId) => api.post('/favorites', { reportId }).then(r => r.data),
+  addFavorite: async (reportId) => {
+    try {
+      console.log('➕ API: Adding favorite:', reportId);
+      const response = await api.post('/favorites', { reportId });
+      console.log('✅ Added to favorites:', reportId);
+      return response.data;
+    } catch (error) {
+      console.error('❌ API Error adding favorite:', error);
+      throw error;
+    }
+  },
   
   // Remove from favorites
-  removeFavorite: (reportId) => api.delete(`/favorites/${reportId}`).then(r => r.data),
+  removeFavorite: async (reportId) => {
+    try {
+      console.log('➖ API: Removing favorite:', reportId);
+      const response = await api.delete(`/favorites/${reportId}`);
+      console.log('✅ Removed from favorites:', reportId);
+      return response.data;
+    } catch (error) {
+      console.error('❌ API Error removing favorite:', error);
+      throw error;
+    }
+  },
   
   // Check if report is favorited
-  isFavorited: (reportId) => api.get(`/favorites/check/${reportId}`).then(r => r.data),
+  isFavorited: async (reportId) => {
+    try {
+      const response = await api.get(`/favorites/check/${reportId}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ API Error checking favorite status:', error);
+      return { success: false, isFavorited: false };
+    }
+  },
 };
 
 // ==================== DEBUGGING/UTILITY API ====================

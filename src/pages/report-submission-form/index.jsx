@@ -1,8 +1,8 @@
+// src/pages/report-submission-form/index.jsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Header from '../../components/ui/Header';
 import NavigationBreadcrumbs from '../../components/ui/NavigationBreadcrumbs';
 import StatusIndicatorBanner from '../../components/ui/StatusIndicatorBanner';
-import QuickActionPanel from '../../components/ui/QuickActionPanel';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import ReportMetadataForm from './components/ReportMetadataForm';
@@ -12,23 +12,23 @@ import DraftAutoSave from './components/DraftAutoSave';
 
 const ReportSubmissionForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
-const [formData, setFormData] = useState({
-  title: '',
-  authorFirstName: '',
-  authorLastName: '',
-  studentNumber: '',
-  email: '',
-  specialty: '',
-  academicYear: '',
-  supervisor_id: null,        // ← CHANGED
-  co_supervisor_id: null,     // ← CHANGED
-  hostCompany: '',
-  defenseDate: '',
-  keywords: [],
-  abstract: '',
-  allowPublicAccess: true,
-  isConfidential: false,
-});
+  const [formData, setFormData] = useState({
+    title: '',
+    authorFirstName: '',
+    authorLastName: '',
+    studentNumber: '',
+    email: '',
+    specialty: '',
+    academicYear: '',
+    supervisor_id: null,
+    co_supervisor_id: null,
+    hostCompany: '',
+    defenseDate: '',
+    keywords: [],
+    abstract: '',
+    allowPublicAccess: true,
+    isConfidential: false,
+  });
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -38,9 +38,6 @@ const [formData, setFormData] = useState({
   const [bannerMessage, setBannerMessage] = useState('');
   const [bannerType, setBannerType] = useState('info');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [myReports, setMyReports] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const steps = [
     { id: 1, title: 'Métadonnées', description: 'Informations du rapport', icon: 'FileText' },
@@ -68,27 +65,26 @@ const [formData, setFormData] = useState({
     setShowBanner(true);
   }, []);
 
-// In index.jsx
-const validateStep = useMemo(() => {
-  return (step) => {
-    const newErrors = {};
-    if (step === 1) {
-      if (!formData.title || formData.title.length < 10) newErrors.title = 'Le titre doit contenir au moins 10 caractères';
-      if (!formData.authorFirstName) newErrors.authorFirstName = 'Le prénom est requis';
-      if (!formData.authorLastName) newErrors.authorLastName = 'Le nom est requis';
-      if (!formData.studentNumber) newErrors.studentNumber = 'Le numéro d\'étudiant est requis';
-      if (!formData.email || !formData.email.includes('@esprim.tn')) newErrors.email = 'Email @esprim.tn requis';
-      if (!formData.specialty) newErrors.specialty = 'La spécialité est requise';
-      if (!formData.academicYear) newErrors.academicYear = 'L\'année académique est requise';
-      if (!formData.supervisor_id) newErrors.supervisor = 'L\'encadrant principal est requis'; // ← CHANGED
-      if (!formData.defenseDate) newErrors.defenseDate = 'La date de soutenance est requise';
-      if (!formData.keywords || formData.keywords.length < 3) newErrors.keywords = 'Au moins 3 mots-clés requis';
-      if (!formData.abstract || formData.abstract.length < 200) newErrors.abstract = 'Le résumé doit contenir au moins 200 caractères';
-    }
-    if (step === 2 && !uploadedFile) newErrors.file = 'Le fichier PDF est requis';
-    return Object.keys(newErrors).length === 0;
-  };
-}, [formData, uploadedFile]);
+  const validateStep = useMemo(() => {
+    return (step) => {
+      const newErrors = {};
+      if (step === 1) {
+        if (!formData.title || formData.title.length < 10) newErrors.title = 'Le titre doit contenir au moins 10 caractères';
+        if (!formData.authorFirstName) newErrors.authorFirstName = 'Le prénom est requis';
+        if (!formData.authorLastName) newErrors.authorLastName = 'Le nom est requis';
+        if (!formData.studentNumber) newErrors.studentNumber = 'Le numéro d\'étudiant est requis';
+        if (!formData.email || !formData.email.includes('@esprim.tn')) newErrors.email = 'Email @esprim.tn requis';
+        if (!formData.specialty) newErrors.specialty = 'La spécialité est requise';
+        if (!formData.academicYear) newErrors.academicYear = 'L\'année académique est requise';
+        if (!formData.supervisor_id) newErrors.supervisor = 'L\'encadrant principal est requis';
+        if (!formData.defenseDate) newErrors.defenseDate = 'La date de soutenance est requise';
+        if (!formData.keywords || formData.keywords.length < 3) newErrors.keywords = 'Au moins 3 mots-clés requis';
+        if (!formData.abstract || formData.abstract.length < 200) newErrors.abstract = 'Le résumé doit contenir au moins 200 caractères';
+      }
+      if (step === 2 && !uploadedFile) newErrors.file = 'Le fichier PDF est requis';
+      return Object.keys(newErrors).length === 0;
+    };
+  }, [formData, uploadedFile]);
 
   const handleNextStep = () => {
     if (validateStep(currentStep)) {
@@ -124,47 +120,6 @@ const validateStep = useMemo(() => {
     }, 200);
   };
 
-// RÉCUPÉRER LES RAPPORTS SOUMIS
-  useEffect(() => {
-    const fetchMyReports = async () => {
-      try {
-        const session = JSON.parse(localStorage.getItem('esprim_session') || '{}');
-        const token = session.token;
-
-        if (!token) {
-          setError('Non connecté');
-          setLoading(false);
-          return;
-        }
-
-        const response = await fetch('http://localhost:5000/api/reports/my-submissions', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-if (!response.ok) {
-    const text = await response.text();
-    console.error("Backend error response:", text);
-    throw new Error(`Erreur: ${response.status}`);
-}
-
-        const data = await response.json();
-        setMyReports(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMyReports();
-  }, []);
-
-
-
-
   const handleFileRemove = () => {
     setUploadedFile(null);
     setUploadProgress(0);
@@ -181,28 +136,40 @@ if (!response.ok) {
     showStatusBanner('Brouillon sauvegardé', 'success');
   };
 
-  // FONCTION DE SOUMISSION CORRIGÉE - PLUS JAMAIS DE 404
+  // ✅ FONCTION DE SOUMISSION - BOUTON TOUJOURS ACTIF
   const handleSubmit = async () => {
-    if (!validateStep(1) || !validateStep(2)) {
-      showStatusBanner('Veuillez corriger toutes les erreurs', 'error');
+    // Vérifier les étapes obligatoires (métadonnées et fichier)
+    if (!validateStep(1)) {
+      showStatusBanner('Veuillez compléter les métadonnées', 'error');
+      setCurrentStep(1);
       return;
     }
-    if (Object.values(checklistData).filter(Boolean).length < 15) {
-      showStatusBanner('Veuillez compléter tous les points de la checklist', 'warning');
-      setCurrentStep(3);
-      return;
-    }
-    if (!uploadedFile) {
-      showStatusBanner('Fichier PDF manquant', 'error');
+    
+    if (!validateStep(2)) {
+      showStatusBanner('Veuillez télécharger le fichier PDF', 'error');
       setCurrentStep(2);
       return;
+    }
+
+    // ⚠️ AVERTISSEMENT si checklist incomplète, mais permet quand même la soumission
+    const checklistCompletion = Object.values(checklistData).filter(Boolean).length;
+    if (checklistCompletion < 6) {
+      const confirmSubmit = window.confirm(
+        `⚠️ Attention !\n\nVotre checklist n'est complétée qu'à ${checklistCompletion}/6.\n\n` +
+        `Il est fortement recommandé de vérifier tous les points avant la soumission.\n\n` +
+        `Voulez-vous vraiment soumettre maintenant ?`
+      );
+      
+      if (!confirmSubmit) {
+        return;
+      }
     }
 
     const session = JSON.parse(localStorage.getItem('esprim_session') || '{}');
     const token = session.token;
     if (!token) {
       showStatusBanner('Session expirée, reconnexion requise', 'error');
-      setTimeout(() => window.location.href = '/auth/login', 2000);
+      setTimeout(() => window.location.href = '/login', 2000);
       return;
     }
 
@@ -236,16 +203,12 @@ if (!response.ok) {
         xhr.onload = () => {
           setIsUploading(false);
           if (xhr.status >= 200 && xhr.status < 300) {
-            // SUCCÈS
             localStorage.removeItem('esprim_draft_data');
             localStorage.removeItem('esprim_draft_timestamp');
             showStatusBanner('Rapport soumis avec succès ! Redirection...', 'success');
-
-            // REDIRECTION ABSOLUE → PLUS JAMAIS DE 404
             setTimeout(() => {
               window.location.href = '/student/dashboard';
             }, 2000);
-
             resolve();
           } else {
             showStatusBanner('Erreur lors de la soumission', 'error');
@@ -268,24 +231,24 @@ if (!response.ok) {
     }
   };
 
-const isStepCompleted = (stepId) => {
-  if (stepId === 1) {
-    return formData.title?.length >= 10 &&
-           formData.authorFirstName &&
-           formData.authorLastName &&
-           formData.studentNumber &&
-           formData.email?.includes('@esprim.tn') &&
-           formData.specialty &&
-           formData.academicYear &&
-           formData.supervisor_id &&  // ← CHANGED
-           formData.defenseDate &&
-           formData.keywords?.length >= 3 &&
-           formData.abstract?.length >= 200;
-  }
-  if (stepId === 2) return !!uploadedFile;
-  if (stepId === 3) return Object.values(checklistData).filter(Boolean).length >= 15;
-  return false;
-};
+  const isStepCompleted = (stepId) => {
+    if (stepId === 1) {
+      return formData.title?.length >= 10 &&
+             formData.authorFirstName &&
+             formData.authorLastName &&
+             formData.studentNumber &&
+             formData.email?.includes('@esprim.tn') &&
+             formData.specialty &&
+             formData.academicYear &&
+             formData.supervisor_id &&
+             formData.defenseDate &&
+             formData.keywords?.length >= 3 &&
+             formData.abstract?.length >= 200;
+    }
+    if (stepId === 2) return !!uploadedFile;
+    if (stepId === 3) return Object.values(checklistData).filter(Boolean).length >= 6;
+    return false;
+  };
 
   const getStepContent = () => {
     switch (currentStep) {
@@ -381,7 +344,6 @@ const isStepCompleted = (stepId) => {
                         loading={isSubmitting}
                         iconName="Send"
                         iconPosition="left"
-                        disabled={Object.values(checklistData).filter(Boolean).length < 15}
                       >
                         {isSubmitting ? 'Soumission...' : 'Soumettre le Rapport'}
                       </Button>
@@ -402,6 +364,7 @@ const isStepCompleted = (stepId) => {
               <div className="bg-card border border-border rounded-academic academic-shadow-sm p-4">
                 <DraftAutoSave formData={formData} uploadedFile={uploadedFile} onManualSave={handleSaveDraft} />
               </div>
+              
               {/* Aide & Conseils */}
               <div className="bg-card border border-border rounded-academic academic-shadow-sm p-4">
                 <h3 className="text-sm font-heading font-medium text-foreground mb-3 flex items-center space-x-2">
@@ -420,6 +383,7 @@ const isStepCompleted = (stepId) => {
                   </Button>
                 </div>
               </div>
+              
               <div className="bg-accent/10 border border-accent/20 rounded-academic p-4">
                 <h3 className="text-sm font-medium text-accent mb-2 flex items-center space-x-2">
                   <Icon name="MessageCircle" size={16} />

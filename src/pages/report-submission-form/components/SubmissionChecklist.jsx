@@ -6,150 +6,78 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
   const [checkedItems, setCheckedItems] = useState({});
   const [completionPercentage, setCompletionPercentage] = useState(0);
 
+  // Simplified checklist - only essential items
   const checklistItems = [
     {
-      id: 'title',
-      category: 'Métadonnées',
-      label: 'Titre du rapport renseigné',
-      description: 'Le titre doit être descriptif et précis',
+      id: 'metadata_complete',
+      label: 'Métadonnées complètes',
+      description: 'Titre, auteur, encadrant, spécialité renseignés',
       required: true,
-      autoCheck: () => formData?.title && formData?.title?.length >= 10
+      autoCheck: () => 
+        formData?.title?.length >= 10 &&
+        formData?.authorFirstName &&
+        formData?.authorLastName &&
+        formData?.supervisor_id &&
+        formData?.specialty &&
+        formData?.academicYear
     },
     {
-      id: 'author',
-      category: 'Métadonnées',
-      label: 'Informations auteur complètes',
-      description: 'Prénom, nom, et numéro d\'étudiant',
+      id: 'keywords_abstract',
+      label: 'Mots-clés et résumé',
+      description: 'Minimum 3 mots-clés et résumé de 200 caractères',
       required: true,
-      autoCheck: () => formData?.authorFirstName && formData?.authorLastName && formData?.studentNumber
+      autoCheck: () => 
+        formData?.keywords?.length >= 3 &&
+        formData?.abstract?.length >= 200
     },
     {
-      id: 'supervisor',
-      category: 'Métadonnées',
-      label: 'Encadrant sélectionné',
-      description: 'Encadrant principal obligatoire',
-      required: true,
-      autoCheck: () => formData?.supervisor
-    },
-    {
-      id: 'academic',
-      category: 'Métadonnées',
-      label: 'Informations académiques',
-      description: 'Spécialité et année académique',
-      required: true,
-      autoCheck: () => formData?.specialty && formData?.academicYear
-    },
-    {
-      id: 'keywords',
-      category: 'Métadonnées',
-      label: 'Mots-clés (minimum 3)',
-      description: 'Au moins 3 mots-clés pertinents',
-      required: true,
-      autoCheck: () => formData?.keywords && formData?.keywords?.length >= 3
-    },
-    {
-      id: 'abstract',
-      category: 'Métadonnées',
-      label: 'Résumé détaillé',
-      description: 'Minimum 200 caractères',
-      required: true,
-      autoCheck: () => formData?.abstract && formData?.abstract?.length >= 200
-    },
-    {
-      id: 'defense_date',
-      category: 'Métadonnées',
-      label: 'Date de soutenance',
-      description: 'Date de présentation du projet',
-      required: true,
-      autoCheck: () => formData?.defenseDate
-    },
-    {
-      id: 'file_upload',
-      category: 'Fichier',
+      id: 'pdf_uploaded',
       label: 'Fichier PDF téléchargé',
-      description: 'Document principal au format PDF',
-      required: true,
-      autoCheck: () => uploadedFile
-    },
-    {
-      id: 'file_size',
-      category: 'Fichier',
-      label: 'Taille de fichier valide',
-      description: 'Fichier inférieur à 50MB',
+      description: 'Document principal (max 50MB)',
       required: true,
       autoCheck: () => uploadedFile && uploadedFile?.size <= 50 * 1024 * 1024
     },
     {
-      id: 'graphic_charter',
-      category: 'Qualité',
-      label: 'Charte graphique ESPRIM respectée',
-      description: 'Logo, couleurs, et mise en page conformes',
-      required: true,
-      autoCheck: () => false // Manual check required
-    },
-    {
-      id: 'page_numbering',
-      category: 'Qualité',
-      label: 'Numérotation des pages',
-      description: 'Toutes les pages sont numérotées',
-      required: true,
-      autoCheck: () => false // Manual check required
-    },
-    {
-      id: 'bibliography',
-      category: 'Qualité',
-      label: 'Bibliographie présente',
-      description: 'Sources et références citées',
-      required: true,
-      autoCheck: () => false // Manual check required
-    },
-    {
       id: 'cover_page',
-      category: 'Qualité',
-      label: 'Page de garde complète',
-      description: 'Titre, auteur, encadrant, date, logo ESPRIM',
+      label: 'Page de garde conforme',
+      description: 'Logo ESPRIM, titre, auteur, encadrant, date',
       required: true,
-      autoCheck: () => false // Manual check required
+      autoCheck: () => false
     },
     {
-      id: 'content_quality',
-      category: 'Qualité',
-      label: 'Qualité du contenu vérifiée',
-      description: 'Orthographe, grammaire, et structure',
+      id: 'structure',
+      label: 'Structure du document',
+      description: 'Sommaire, introduction, développement, conclusion, bibliographie',
       required: true,
-      autoCheck: () => false // Manual check required
+      autoCheck: () => false
     },
     {
-      id: 'plagiarism_check',
-      category: 'Qualité',
-      label: 'Vérification anti-plagiat',
-      description: 'Contenu original et sources citées',
+      id: 'originality',
+      label: 'Originalité vérifiée',
+      description: 'Contenu original avec sources citées correctement',
       required: true,
-      autoCheck: () => false // Manual check required
+      autoCheck: () => false
     }
   ];
 
-  // ✅ CORRECTION: Gérer les changements de checkbox et notifier le parent immédiatement
+  // Handle checkbox changes
   const handleCheckboxChange = (itemId, checked) => {
     setCheckedItems(prevItems => {
       const newCheckedItems = { ...prevItems, [itemId]: checked };
-      // Notifier le parent immédiatement avec les nouvelles données
       onChecklistChange(newCheckedItems);
       return newCheckedItems;
     });
   };
 
-  // ✅ CORRECTION: Recalculer le pourcentage à chaque changement de checkedItems
+  // Calculate completion percentage
   useEffect(() => {
     const totalItems = checklistItems.length;
     const checkedCount = Object.values(checkedItems).filter(Boolean).length;
     const percentage = Math.round((checkedCount / totalItems) * 100);
     setCompletionPercentage(percentage);
-    
-    console.log(`[Checklist] ${checkedCount}/${totalItems} items checked (${percentage}%)`);
   }, [checkedItems]);
 
-  // ✅ CORRECTION: Auto-check basé sur formData et uploadedFile
+  // Auto-check items when conditions are met
   useEffect(() => {
     const newCheckedItems = { ...checkedItems };
     let hasChanges = false;
@@ -158,19 +86,9 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
       const shouldBeChecked = item.autoCheck();
       const currentlyChecked = newCheckedItems[item.id];
       
-      // Auto-cocher si la condition est remplie et pas déjà coché
-      if (shouldBeChecked && !currentlyChecked) {
-        newCheckedItems[item.id] = true;
+      if (shouldBeChecked !== currentlyChecked) {
+        newCheckedItems[item.id] = shouldBeChecked;
         hasChanges = true;
-      }
-      // Décocher si la condition n'est plus remplie (seulement pour les items auto)
-      else if (!shouldBeChecked && currentlyChecked && item.autoCheck() !== false) {
-        // Ne décocher que si c'était un auto-check (pas un check manuel)
-        const isAutoCheckable = item.autoCheck !== (() => false);
-        if (isAutoCheckable) {
-          newCheckedItems[item.id] = false;
-          hasChanges = true;
-        }
       }
     });
 
@@ -180,146 +98,137 @@ const SubmissionChecklist = ({ formData, uploadedFile, onChecklistChange }) => {
     }
   }, [formData, uploadedFile]);
 
-  const groupedItems = checklistItems.reduce((groups, item) => {
-    if (!groups[item.category]) {
-      groups[item.category] = [];
-    }
-    groups[item.category].push(item);
-    return groups;
-  }, {});
-
-  const getCompletionColor = () => {
-    if (completionPercentage >= 100) return 'text-success';
-    if (completionPercentage >= 75) return 'text-warning';
-    return 'text-muted-foreground';
-  };
-
-  const getProgressBarColor = () => {
-    if (completionPercentage >= 100) return 'bg-success';
-    if (completionPercentage >= 75) return 'bg-warning';
-    return 'bg-primary';
-  };
-
-  // Calculer le nombre d'éléments restants
   const totalItems = checklistItems.length;
   const checkedCount = Object.values(checkedItems).filter(Boolean).length;
   const remainingItems = totalItems - checkedCount;
 
+  const getStatusColor = () => {
+    if (completionPercentage >= 100) return 'text-success';
+    if (completionPercentage >= 50) return 'text-warning';
+    return 'text-destructive';
+  };
+
+  const getProgressColor = () => {
+    if (completionPercentage >= 100) return 'bg-success';
+    if (completionPercentage >= 50) return 'bg-warning';
+    return 'bg-destructive';
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-heading font-medium text-foreground">
-          Liste de Vérification
+          Vérification Finale
         </h3>
         <div className="flex items-center space-x-2">
-          <span className={`text-sm font-medium ${getCompletionColor()}`}>
-            {completionPercentage}%
+          <span className={`text-xl font-bold ${getStatusColor()}`}>
+            {checkedCount}/{totalItems}
           </span>
-          <Icon 
-            name={completionPercentage >= 100 ? "CheckCircle" : "Clock"} 
-            size={16} 
-            className={getCompletionColor()} 
-          />
         </div>
       </div>
 
       {/* Progress Bar */}
       <div className="space-y-2">
-        <div className="w-full bg-muted rounded-full h-2">
+        <div className="w-full bg-muted rounded-full h-3">
           <div
-            className={`h-2 rounded-full academic-transition ${getProgressBarColor()}`}
+            className={`h-3 rounded-full transition-all duration-500 ${getProgressColor()}`}
             style={{ width: `${completionPercentage}%` }}
           />
         </div>
-        <p className="text-xs text-muted-foreground">
-          {checkedCount} sur {totalItems} éléments complétés
+        <p className="text-sm text-muted-foreground text-center">
+          {completionPercentage}% complété
         </p>
       </div>
 
-      {/* Checklist Items by Category */}
-      <div className="space-y-6">
-        {Object.entries(groupedItems).map(([category, items]) => (
-          <div key={category} className="space-y-3">
-            <h4 className="text-sm font-medium text-foreground flex items-center space-x-2">
-              <Icon 
-                name={
-                  category === 'Métadonnées' ? 'FileText' :
-                  category === 'Fichier' ? 'Upload' : 'CheckCircle'
-                } 
-                size={16} 
-                className="text-primary" 
+      {/* Checklist Items */}
+      <div className="space-y-3">
+        {checklistItems.map(item => {
+          const isChecked = checkedItems[item.id] || false;
+          const isAutoChecked = item.autoCheck();
+          
+          return (
+            <div 
+              key={item.id} 
+              className={`flex items-start space-x-3 p-4 rounded-lg border-2 transition-all ${
+                isChecked 
+                  ? 'bg-success/5 border-success/30' 
+                  : 'bg-card border-border hover:border-primary/50'
+              }`}
+            >
+              <Checkbox
+                checked={isChecked}
+                onChange={(e) => handleCheckboxChange(item.id, e.target.checked)}
+                disabled={isAutoChecked && isChecked}
+                className="mt-0.5"
               />
-              <span>{category}</span>
-              <span className="text-xs text-muted-foreground">
-                ({items.filter(item => checkedItems[item.id]).length}/{items.length})
-              </span>
-            </h4>
-            
-            <div className="space-y-2">
-              {items.map(item => {
-                const isChecked = checkedItems[item.id] || false;
-                const isAutoChecked = item.autoCheck();
-                
-                return (
-                  <div key={item.id} className="flex items-start space-x-3 p-3 bg-card border border-border rounded-academic">
-                    <Checkbox
-                      checked={isChecked}
-                      onChange={(e) => handleCheckboxChange(item.id, e.target.checked)}
-                      disabled={isAutoChecked && isChecked}
-                      className="mt-0.5"
-                    />
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <p className="text-sm font-medium text-foreground">
-                          {item.label}
-                        </p>
-                        {item.required && (
-                          <span className="text-xs text-destructive">*</span>
-                        )}
-                        {isAutoChecked && isChecked && (
-                          <Icon name="Zap" size={12} className="text-accent" title="Vérifié automatiquement" />
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {item.description}
-                      </p>
-                    </div>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <p className={`text-sm font-medium ${
+                      isChecked ? 'text-success line-through' : 'text-foreground'
+                    }`}>
+                      {item.label}
+                    </p>
+                    {item.required && !isChecked && (
+                      <span className="text-xs text-destructive font-bold">*</span>
+                    )}
                   </div>
-                );
-              })}
+                  
+                  {isAutoChecked && isChecked && (
+                    <Icon name="Zap" size={16} className="text-accent" title="Vérifié automatiquement" />
+                  )}
+                </div>
+                
+                <p className="text-xs text-muted-foreground mt-1">
+                  {item.description}
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Submission Readiness */}
-      <div className={`p-4 rounded-academic border ${
+      {/* Status Alert */}
+      <div className={`p-4 rounded-lg border-2 flex items-start space-x-3 ${
         completionPercentage >= 100 
-          ? 'bg-success/10 border-success/20' 
-          : 'bg-warning/10 border-warning/20'
+          ? 'bg-success/10 border-success/30' 
+          : 'bg-warning/10 border-warning/30'
       }`}>
-        <div className="flex items-center space-x-3">
-          <Icon 
-            name={completionPercentage >= 100 ? "CheckCircle" : "AlertTriangle"} 
-            size={20} 
-            className={completionPercentage >= 100 ? "text-success" : "text-warning"} 
-          />
-          <div>
-            <p className={`text-sm font-medium ${
-              completionPercentage >= 100 ? "text-success" : "text-warning"
-            }`}>
-              {completionPercentage >= 100 
-                ? "Prêt pour la soumission" 
-                : "Éléments manquants"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {completionPercentage >= 100 
-                ? "Tous les critères sont remplis. Vous pouvez soumettre votre rapport."
-                : `Complétez les ${remainingItems} élément${remainingItems > 1 ? 's' : ''} restant${remainingItems > 1 ? 's' : ''} avant la soumission.`}
-            </p>
-          </div>
+        <Icon 
+          name={completionPercentage >= 100 ? "CheckCircle2" : "AlertCircle"} 
+          size={24} 
+          className={completionPercentage >= 100 ? "text-success flex-shrink-0" : "text-warning flex-shrink-0"} 
+        />
+        <div>
+          <p className={`font-semibold mb-1 ${
+            completionPercentage >= 100 ? "text-success" : "text-warning"
+          }`}>
+            {completionPercentage >= 100 
+              ? "✓ Prêt pour la soumission" 
+              : `⚠ ${remainingItems} élément${remainingItems > 1 ? 's' : ''} à vérifier`}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {completionPercentage >= 100 
+              ? "Tous les critères sont validés. Vous pouvez soumettre votre rapport en toute confiance."
+              : "Veuillez compléter tous les points de vérification avant de soumettre votre rapport."}
+          </p>
         </div>
+      </div>
+
+      {/* Important Notes */}
+      <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+        <h4 className="text-sm font-semibold text-foreground flex items-center space-x-2">
+          <Icon name="Info" size={16} className="text-primary" />
+          <span>Points importants</span>
+        </h4>
+        <ul className="text-xs text-muted-foreground space-y-1.5 ml-6">
+          <li>• La page de garde doit suivre le modèle ESPRIM officiel</li>
+          <li>• Toutes les sources doivent être correctement citées</li>
+          <li>• Le document doit être relu et corrigé avant soumission</li>
+          <li>• Les annexes doivent être numérotées et référencées</li>
+        </ul>
       </div>
     </div>
   );

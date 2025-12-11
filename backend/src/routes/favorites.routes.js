@@ -1,12 +1,12 @@
 // backend/src/routes/favorites.routes.js
-// FIXED VERSION with detailed debugging
+// FIXED VERSION - Returns data as array directly
 
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { authenticateToken } = require('../middleware/auth.middleware');
 
-// TEST ROUTE - Check if route is working
+// TEST ROUTE
 router.get('/test', authenticateToken, (req, res) => {
   res.json({
     success: true,
@@ -18,7 +18,7 @@ router.get('/test', authenticateToken, (req, res) => {
 // GET /api/favorites - Liste des favoris
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    console.log('📥 Fetching favorites for user:', req.user.id);
+    console.log('📚 Fetching favorites for user:', req.user.id);
 
     const { rows } = await db.query(`
       SELECT 
@@ -52,9 +52,13 @@ router.get('/', authenticateToken, async (req, res) => {
 
     console.log('✅ Found favorites:', rows.length);
 
+    // ✅ FIX: Return array directly in data.favorites
     res.json({
       success: true,
-      data: { favorites: rows }
+      data: {
+        favorites: rows  // ← Array is nested in favorites
+      },
+      count: rows.length
     });
   } catch (error) {
     console.error('❌ Error fetching favorites:', {
@@ -134,7 +138,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     console.log('✅ Added to favorites');
 
-    // Incrémente le compteur (non-blocking, ne fait pas échouer la requête)
+    // Incrémente le compteur
     console.log('📊 Updating favorite count...');
     
     try {
@@ -146,7 +150,6 @@ router.post('/', authenticateToken, async (req, res) => {
       console.log('✅ Favorite count updated');
     } catch (countError) {
       console.warn('⚠️ Could not update favorite count (non-critical):', countError.message);
-      // Continue anyway - this is not critical
     }
 
     res.json({ 
@@ -174,12 +177,11 @@ router.delete('/:reportId', authenticateToken, async (req, res) => {
   try {
     const { reportId } = req.params;
 
-    console.log('📥 Removing favorite:', {
+    console.log('🗑️ Removing favorite:', {
       userId: req.user.id,
       reportId: reportId
     });
 
-    // Supprime des favoris
     const result = await db.query(
       'DELETE FROM user_favorites WHERE user_id = $1 AND report_id = $2 RETURNING id',
       [req.user.id, reportId]
@@ -222,7 +224,7 @@ router.delete('/:reportId', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/favorites/check/:reportId - Vérifier si un rapport est en favori
+// GET /api/favorites/check/:reportId
 router.get('/check/:reportId', authenticateToken, async (req, res) => {
   try {
     const { reportId } = req.params;
