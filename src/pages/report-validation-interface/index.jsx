@@ -8,7 +8,6 @@ import Button from '../../components/ui/Button';
 
 import PDFViewer from './components/PDFViewer';
 import ValidationChecklist from './components/ValidationChecklist';
-import CommentSystem from './components/CommentSystem';
 import ValidationActions from './components/ValidationActions';
 import ValidationHistory from './components/ValidationHistory';
 
@@ -30,10 +29,9 @@ const ReportValidationInterface = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
-  const [comments, setComments] = useState([]);
   const [validationHistory, setValidationHistory] = useState([]);
   const [checklistData, setChecklistData] = useState({});
-  const [checklistProgress, setChecklistProgress] = useState(0); // ← NOUVEAU: État séparé pour la progression
+  const [checklistProgress, setChecklistProgress] = useState(0);
   const [saving, setSaving] = useState(false);
 
   const currentUser = {
@@ -81,17 +79,9 @@ const ReportValidationInterface = () => {
         validatedAt: report.validated_at
       });
 
-      setComments((report.comments || []).map(c => ({
-        id: c.id,
-        content: c.content,
-        author: c.teacher_name || 'Enseignant',
-        date: new Date(c.created_at),
-        updatedAt: c.updated_at ? new Date(c.updated_at) : null
-      })));
-
       setValidationHistory(report.validation_history || []);
       
-      // ✅ Restaurer les données du checklist ET la progression
+      // Restaurer les données du checklist ET la progression
       const savedChecklist = report.checklist_data || {};
       setChecklistData(savedChecklist);
       
@@ -124,15 +114,13 @@ const ReportValidationInterface = () => {
     }
   };
 
-  // ✅ CORRECTION: Recevoir les données avec la progression et les sauvegarder
   const handleChecklistUpdate = async (data) => {
-    // data contient maintenant { checklist, progress }
     setChecklistData(data.checklist);
     setChecklistProgress(data.progress.percentage);
     
     console.log('💾 Sauvegarde checklist:', data.progress.percentage + '%');
     
-    // ✅ Sauvegarder automatiquement dans la base de données
+    // Sauvegarder automatiquement dans la base de données
     try {
       await teacherReportsAPI.updateChecklist(reportId, {
         checklist: data.checklist,
@@ -141,20 +129,7 @@ const ReportValidationInterface = () => {
       console.log('✅ Checklist sauvegardée avec succès');
     } catch (err) {
       console.error('❌ Erreur lors de la sauvegarde du checklist:', err);
-      // On n'affiche pas d'alerte pour ne pas perturber l'UX
     }
-  };
-
-  const handleAddComment = (comment) => {
-    setComments(prev => [...prev, { ...comment, id: Date.now() }]);
-  };
-
-  const handleUpdateComment = (id, updates) => {
-    setComments(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-  };
-
-  const handleDeleteComment = (id) => {
-    setComments(prev => prev.filter(c => c.id !== id));
   };
 
   if (loading) {
@@ -237,14 +212,10 @@ const ReportValidationInterface = () => {
               </div>
               <div className="p-5">
                 {activeTab === 'validation' ? (
-                  <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="text-center">
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-3xl font-bold text-blue-600">{Math.round(checklistProgress)}%</div>
-                      <div className="text-xs text-gray-600">Checklist</div>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="text-3xl font-bold text-blue-600">{comments.length}</div>
-                      <div className="text-xs text-gray-600">Commentaires</div>
+                      <div className="text-xs text-gray-600">Checklist complétée</div>
                     </div>
                   </div>
                 ) : (
@@ -258,26 +229,18 @@ const ReportValidationInterface = () => {
               onValidate={(data) => handleValidation('validated', data.comment)}
               onReject={(data) => handleValidation('rejected', data.comment)}
               onRequestRevision={(data) => handleValidation('revision_requested', data.comment)}
-              checklistProgress={checklistProgress} // ← Passe maintenant la vraie progression
-              hasComments={comments.length > 0}
+              checklistProgress={checklistProgress}
+              hasComments={false}
             />
           </div>
         </div>
 
-        {/* Checklist + Commentaires */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Checklist en pleine largeur */}
+        <div className="mt-8">
           <ValidationChecklist
             reportData={reportData}
             onChecklistUpdate={handleChecklistUpdate}
             checklistData={checklistData}
-          />
-          <CommentSystem
-            reportData={reportData}
-            comments={comments}
-            onAddComment={handleAddComment}
-            onUpdateComment={handleUpdateComment}
-            onDeleteComment={handleDeleteComment}
-            currentUser={currentUser}
           />
         </div>
       </main>

@@ -18,41 +18,6 @@ const CommentSystem = ({
   const [commentType, setCommentType] = useState('feedback'); // feedback, revision, approval
   const [showRichEditor, setShowRichEditor] = useState(false);
 
-  // Mock comments data
-  const mockComments = [
-  {
-    id: 1,
-    type: 'feedback',
-    content: `La méthodologie présentée dans ce rapport est bien structurée, mais il serait bénéfique d'ajouter plus de détails sur les critères de sélection des participants à l'étude.\n\nDe plus, la section sur l'analyse des résultats pourrait être enrichie avec des graphiques comparatifs.`,
-    author: {
-      name: 'Dr. Marie Dubois', role: 'Enseignant', avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_11b715d60-1762273834012.png", avatarAlt: 'Professional headshot of middle-aged woman with brown hair in academic setting'
-    },
-    timestamp: new Date(Date.now() - 3600000),
-    isVisible: true,
-    attachments: [
-    {
-      name: 'suggestions_methodologie.pdf', size: '245 KB', type: 'pdf'
-    }]
-
-  },
-  {
-    id: 2,
-    type: 'revision',
-    content: `Révision requise pour les sections suivantes :\n\n1. Chapitre 3 : Revoir les références bibliographiques (format APA)\n2. Annexes : Ajouter les questionnaires utilisés\n3. Conclusion : Développer les perspectives d'amélioration`,
-    author: {
-      name: 'Prof. Jean Martin',
-      role: 'Directeur de thèse',
-      avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_1f1f33c71-1762274731923.png",
-      avatarAlt: 'Professional headshot of middle-aged man with glasses in academic office'
-    },
-    timestamp: new Date(Date.now() - 7200000),
-    isVisible: true,
-    priority: 'high'
-  }];
-
-
-  const allComments = [...mockComments, ...comments];
-
   const handleSubmitComment = () => {
     if (!newComment?.trim()) return;
 
@@ -61,10 +26,8 @@ const CommentSystem = ({
       type: commentType,
       content: newComment,
       author: currentUser || {
-        name: 'Marie Dubois',
-        role: 'Enseignant',
-        avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_11b715d60-1762273834012.png",
-        avatarAlt: 'Professional headshot of middle-aged woman with brown hair in academic setting'
+        name: 'Enseignant',
+        role: 'Enseignant'
       },
       timestamp: new Date(),
       isVisible: commentType !== 'internal'
@@ -153,7 +116,7 @@ const CommentSystem = ({
           </h3>
           <div className="flex items-center space-x-2">
             <span className="text-sm font-caption text-text-secondary">
-              {allComments?.length} commentaire{allComments?.length !== 1 ? 's' : ''}
+              {comments?.length} commentaire{comments?.length !== 1 ? 's' : ''}
             </span>
             {!isReadOnly &&
             <Button
@@ -170,7 +133,7 @@ const CommentSystem = ({
       </div>
       {/* Comments List */}
       <div className="max-h-96 overflow-y-auto">
-        {allComments?.length === 0 ?
+        {comments?.length === 0 ?
         <div className="p-8 text-center">
             <Icon name="MessageSquare" size={48} className="text-text-secondary mx-auto mb-4" />
             <p className="text-text-secondary font-caption">
@@ -179,7 +142,7 @@ const CommentSystem = ({
           </div> :
 
         <div className="p-4 space-y-4">
-            {allComments?.map((comment) => {
+            {comments?.map((comment) => {
             const typeConfig = getCommentTypeConfig(comment?.type);
 
             return (
@@ -190,17 +153,23 @@ const CommentSystem = ({
                   {/* Comment Header */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 rounded-full overflow-hidden bg-muted">
-                        <img
-                        src={comment?.author?.avatar}
-                        alt={comment?.author?.avatarAlt}
-                        className="w-full h-full object-cover" />
-
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-muted flex items-center justify-center">
+                        {comment?.author?.avatar ? (
+                          <img
+                            src={comment?.author?.avatar}
+                            alt={comment?.author?.avatarAlt || comment?.author?.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-sm font-medium text-text-primary">
+                            {comment?.author?.name?.charAt(0) || 'U'}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <div className="flex items-center space-x-2">
                           <span className="font-medium text-text-primary text-sm">
-                            {comment?.author?.name}
+                            {comment?.author?.name || 'Anonyme'}
                           </span>
                           <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-xs font-caption ${typeConfig?.bgColor} ${typeConfig?.color}`}>
                             <Icon name={typeConfig?.icon} size={12} />
@@ -208,9 +177,9 @@ const CommentSystem = ({
                           </span>
                         </div>
                         <div className="flex items-center space-x-2 text-xs font-caption text-text-secondary">
-                          <span>{comment?.author?.role}</span>
+                          <span>{comment?.author?.role || 'Utilisateur'}</span>
                           <span>•</span>
-                          <span>{formatTimestamp(comment?.timestamp)}</span>
+                          <span>{formatTimestamp(comment?.timestamp || comment?.date)}</span>
                           {comment?.priority === 'high' &&
                         <>
                               <span>•</span>
@@ -221,7 +190,7 @@ const CommentSystem = ({
                       </div>
                     </div>
                     
-                    {!isReadOnly && comment?.author?.name === (currentUser?.name || 'Marie Dubois') &&
+                    {!isReadOnly && comment?.author?.name === (currentUser?.name) &&
                   <div className="flex items-center space-x-1">
                         <Button
                       variant="ghost"

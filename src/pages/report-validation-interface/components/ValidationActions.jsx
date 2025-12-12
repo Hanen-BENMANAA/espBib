@@ -1,298 +1,277 @@
-// ValidationActions.jsx - FULLY REACTIVE VERSION
-
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import Button from '../../../components/ui/Button';
+import StatusIndicator from '../../../components/ui/StatusIndicator';
 
-const ValidationActions = ({ 
-  reportData, 
-  onValidate, 
-  onReject, 
-  onRequestRevision,
-  checklistProgress = 0,
-  hasComments = false,
-  isReadOnly = false 
-}) => {
-  const [showDecisionModal, setShowDecisionModal] = useState(false);
-  const [decisionType, setDecisionType] = useState('');
-  const [decisionComment, setDecisionComment] = useState('');
-  const [notifyStudent, setNotifyStudent] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const ValidationHistory = ({ reportData, historyData = [] }) => {
+  const [expandedEntry, setExpandedEntry] = useState(null);
 
-  const decisionOptions = [
-    { value: 'validated', label: 'Valider le rapport', icon: 'CheckCircle', color: 'success' },
-    { value: 'rejected', label: 'Rejeter le rapport', icon: 'XCircle', color: 'error' },
-    { value: 'revision_requested', label: 'Demander une révision', icon: 'RotateCcw', color: 'warning' }
-  ];
+  // Use only real data from historyData prop
+  const allHistory = historyData
+    ?.map(entry => ({
+      ...entry,
+      timestamp: entry.timestamp instanceof Date ? entry.timestamp : new Date(entry.timestamp)
+    }))
+    ?.sort((a, b) => b?.timestamp - a?.timestamp) || [];
 
-  const handleDecisionSubmit = async () => {
-    const requiresComment = decisionType === 'rejected' || decisionType === 'revision_requested';
-    
-    if (requiresComment && !decisionComment?.trim()) {
-      alert('Un commentaire est obligatoire pour rejeter ou demander une révision');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const decisionData = {
-        comment: decisionComment,
-        notifyStudent,
-        timestamp: new Date()
-      };
-
-      switch (decisionType) {
-        case 'validated':
-          await onValidate(decisionData);
-          break;
-        case 'rejected':
-          await onReject(decisionData);
-          break;
-        case 'revision_requested':
-          await onRequestRevision(decisionData);
-          break;
-        default:
-          throw new Error('Invalid decision type');
+  const getActionConfig = (action) => {
+    const configs = {
+      submitted: {
+        label: 'Soumis',
+        icon: 'Upload',
+        color: 'text-accent',
+        bgColor: 'bg-accent/10'
+      },
+      revision_requested: {
+        label: 'Révision demandée',
+        icon: 'RotateCcw',
+        color: 'text-warning',
+        bgColor: 'bg-warning/10'
+      },
+      validated: {
+        label: 'Validé',
+        icon: 'CheckCircle',
+        color: 'text-success',
+        bgColor: 'bg-success/10'
+      },
+      rejected: {
+        label: 'Rejeté',
+        icon: 'XCircle',
+        color: 'text-error',
+        bgColor: 'bg-error/10'
+      },
+      draft_created: {
+        label: 'Brouillon créé',
+        icon: 'FileText',
+        color: 'text-neutral',
+        bgColor: 'bg-muted'
+      },
+      comment_added: {
+        label: 'Commentaire ajouté',
+        icon: 'MessageSquare',
+        color: 'text-accent',
+        bgColor: 'bg-accent/10'
       }
+    };
+    return configs?.[action] || configs?.submitted;
+  };
 
-      setShowDecisionModal(false);
-      setDecisionComment('');
-      
-    } catch (error) {
-      console.error('Erreur lors de la soumission:', error);
-      alert('Erreur lors de l\'enregistrement de la décision');
-    } finally {
-      setIsSubmitting(false);
+  const formatTimestamp = (timestamp) => {
+    const now = new Date();
+    const diff = now - timestamp;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days === 0) {
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      return hours === 0 ? 'Maintenant' : `Il y a ${hours}h`;
+    } else if (days === 1) {
+      return 'Hier';
+    } else if (days < 7) {
+      return `Il y a ${days} jours`;
+    } else {
+      return timestamp?.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     }
   };
 
-  const openDecisionModal = (type) => {
-    setDecisionType(type);
-    setShowDecisionModal(true);
+  const toggleExpanded = (entryId) => {
+    setExpandedEntry(expandedEntry === entryId ? null : entryId);
   };
-
-  const getDecisionConfig = (type) => {
-    return decisionOptions?.find(option => option?.value === type);
-  };
-
-  const canValidate = checklistProgress >= 80;
-  const requiresComment = decisionType === 'rejected' || decisionType === 'revision_requested';
 
   return (
-    <>
-      <div className="bg-white border border-gray-200 rounded-lg shadow-lg">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900 flex items-center space-x-2">
-            <Icon name="Gavel" size={20} className="text-blue-600" />
-            <span>Actions de Validation</span>
+    <div className="bg-surface border border-border rounded-lg shadow-academic">
+      {/* Header */}
+      <div className="p-4 border-b border-border">
+        <div className="flex items-center justify-between">
+          <h3 className="font-heading font-medium text-text-primary flex items-center space-x-2">
+            <Icon name="History" size={20} className="text-accent" />
+            <span>Historique de Validation</span>
           </h3>
-        </div>
-
-        {/* Status Overview */}
-        <div className="p-4 space-y-4">
-          {/* Progress Indicators */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className={`w-3 h-3 rounded-full ${
-                checklistProgress >= 100 ? 'bg-green-500' : 
-                checklistProgress >= 50 ? 'bg-orange-500' : 'bg-red-500'
-              }`} />
-              <div>
-                <div className="text-sm font-medium text-gray-900">Checklist</div>
-                <div className="text-xs text-gray-600">
-                  {checklistProgress}% complétée
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className={`w-3 h-3 rounded-full ${hasComments ? 'bg-green-500' : 'bg-orange-500'}`} />
-              <div>
-                <div className="text-sm font-medium text-gray-900">Commentaires</div>
-                <div className="text-xs text-gray-600">
-                  {hasComments ? 'Feedback ajouté' : 'Aucun feedback'}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="w-3 h-3 rounded-full bg-blue-600" />
-              <div>
-                <div className="text-sm font-medium text-gray-900">Statut</div>
-                <div className="text-xs text-gray-600">
-                  {reportData?.status === 'pending_validation' ? 'En cours de révision' : 
-                   reportData?.status === 'validated' ? 'Validé' :
-                   reportData?.status === 'rejected' ? 'Rejeté' :
-                   reportData?.status === 'revision_requested' ? 'Révision demandée' :
-                   'En attente'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Validation Requirements */}
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-start space-x-2">
-              <Icon name="Info" size={16} className="text-blue-600 mt-0.5" />
-              <div className="text-sm">
-                <div className="font-medium text-blue-900 mb-1">Prérequis pour la validation</div>
-                <ul className="text-gray-700 space-y-1 text-xs">
-                  <li className={checklistProgress >= 80 ? 'text-green-600' : ''}>
-                    • Checklist complétée à au moins 80% ({checklistProgress}%)
-                  </li>
-                  <li className={hasComments ? 'text-green-600' : 'text-orange-600'}>
-                    • Commentaires de révision ajoutés {hasComments ? '✓' : '(recommandé)'}
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
-          <div className="grid grid-cols-1 gap-3">
-            <Button
-              onClick={() => openDecisionModal('validated')}
-              disabled={!canValidate || isReadOnly}
-              className="w-full bg-green-600 hover:bg-green-700 text-white"
-              iconName="CheckCircle"
-            >
-              Valider le rapport
-            </Button>
-            
-            <Button
-              onClick={() => openDecisionModal('revision_requested')}
-              disabled={isReadOnly}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-              iconName="RotateCcw"
-            >
-              Demander une révision
-            </Button>
-            
-            <Button
-              onClick={() => openDecisionModal('rejected')}
-              disabled={isReadOnly}
-              className="w-full bg-red-600 hover:bg-red-700 text-white"
-              iconName="XCircle"
-            >
-              Rejeter le rapport
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-caption text-text-secondary">
+              {allHistory?.length} entrée{allHistory?.length !== 1 ? 's' : ''}
+            </span>
+            <Button variant="ghost" size="sm" iconName="Download">
+              Exporter
             </Button>
           </div>
-
-          {!canValidate && (
-            <p className="text-xs text-orange-600 mt-3 text-center">
-              ⚠️ Complétez au moins 80% de la checklist pour valider
-            </p>
-          )}
         </div>
       </div>
+      {/* Timeline */}
+      <div className="p-4">
+        {allHistory?.length === 0 ?
+        <div className="text-center py-8">
+            <Icon name="History" size={48} className="text-text-secondary mx-auto mb-4" />
+            <p className="text-text-secondary font-caption">
+              Aucun historique disponible
+            </p>
+          </div> :
 
-      {/* Decision Modal */}
-      {showDecisionModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900 flex items-center space-x-2">
-                  <Icon 
-                    name={getDecisionConfig(decisionType)?.icon} 
-                    size={20} 
-                    className={`text-${getDecisionConfig(decisionType)?.color === 'success' ? 'green' : 
-                                getDecisionConfig(decisionType)?.color === 'error' ? 'red' : 'orange'}-600`}
-                  />
-                  <span>{getDecisionConfig(decisionType)?.label}</span>
-                </h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowDecisionModal(false)}
-                >
-                  <Icon name="X" size={16} />
-                </Button>
-              </div>
-            </div>
+        <div className="space-y-4">
+            {allHistory?.map((entry, index) => {
+            const actionConfig = getActionConfig(entry?.action);
+            const isExpanded = expandedEntry === entry?.id;
+            const isLast = index === allHistory?.length - 1;
 
-            {/* Modal Content */}
-            <div className="p-4 space-y-4">
-              {/* Report Info */}
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm font-medium text-gray-900 mb-1">
-                  {reportData?.title || 'Développement d\'une Application Mobile de Gestion Académique'}
-                </div>
-                <div className="text-xs text-gray-600">
-                  Par {reportData?.studentName || 'Ahmed Ben Salem'} • {reportData?.specialty || 'Génie Logiciel'}
-                </div>
-              </div>
+            return (
+              <div key={entry?.id} className="relative">
+                  {/* Timeline Line */}
+                  {!isLast &&
+                <div className="absolute left-6 top-12 w-0.5 h-full bg-border" />
+                }
+                  <div className="flex items-start space-x-4">
+                    {/* Timeline Icon */}
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${actionConfig?.bgColor} border-2 border-background shadow-academic`}>
+                      <Icon name={actionConfig?.icon} size={20} className={actionConfig?.color} />
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div
+                      className="bg-muted/50 border border-border rounded-lg p-4 cursor-pointer hover:bg-muted/70 transition-academic"
+                      onClick={() => toggleExpanded(entry?.id)}>
 
-              {/* Decision Comment */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-900">
-                  {requiresComment ? 'Commentaire (obligatoire)' : 'Commentaire (optionnel)'}
-                </label>
-                <textarea
-                  value={decisionComment}
-                  onChange={(e) => setDecisionComment(e?.target?.value)}
-                  placeholder={
-                    decisionType === 'validated' 
-                      ? 'Félicitations pour ce travail de qualité...'
-                      : decisionType === 'rejected' 
-                      ? 'Expliquez les raisons du rejet...' 
-                      : 'Détaillez les modifications requises...'
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={4}
-                  required={requiresComment}
-                />
-              </div>
+                        {/* Entry Header */}
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="font-medium text-text-primary">
+                                {actionConfig?.label}
+                              </span>
+                              <StatusIndicator status={entry?.status} size="sm" />
+                            </div>
+                            
+                            <div className="flex items-center space-x-2 text-sm font-caption text-text-secondary">
+                              <span>{entry?.reviewer?.name}</span>
+                              {entry?.reviewer?.role !== 'Automatique' &&
+                            <>
+                                  <span>•</span>
+                                  <span>{entry?.reviewer?.role}</span>
+                                </>
+                            }
+                              <span>•</span>
+                              <span>{formatTimestamp(entry?.timestamp)}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            {entry?.deadline &&
+                          <div className="text-xs font-caption text-warning">
+                                Échéance: {entry?.deadline?.toLocaleDateString('fr-FR')}
+                              </div>
+                          }
+                            <Icon
+                            name={isExpanded ? "ChevronUp" : "ChevronDown"}
+                            size={16}
+                            className="text-text-secondary" />
 
-              {/* Notification Option */}
-              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="notifyStudent"
-                  checked={notifyStudent}
-                  onChange={(e) => setNotifyStudent(e?.target?.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <label htmlFor="notifyStudent" className="text-sm text-gray-900">
-                  Notifier l'étudiant par email
-                </label>
-              </div>
-            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Entry Preview */}
+                        <div className="text-sm text-text-primary">
+                          {entry?.comment?.length > 100 && !isExpanded ?
+                        `${entry?.comment?.substring(0, 100)}...` :
+                        entry?.comment
+                        }
+                        </div>
+                      </div>
+                      
+                      {/* Expanded Details */}
+                      {isExpanded &&
+                    <div className="mt-3 ml-4 space-y-3">
+                          {/* Reviewer Details */}
+                          {entry?.reviewer?.avatar &&
+                      <div className="flex items-center space-x-3 p-3 bg-background border border-border rounded-lg">
+                              <div className="w-10 h-10 rounded-full overflow-hidden bg-muted">
+                                <img
+                            src={entry?.reviewer?.avatar}
+                            alt={entry?.reviewer?.avatarAlt}
+                            className="w-full h-full object-cover" />
 
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex items-center justify-end space-x-3">
-                <Button
-                  variant="ghost"
-                  onClick={() => setShowDecisionModal(false)}
-                  disabled={isSubmitting}
-                >
-                  Annuler
-                </Button>
-                <Button
-                  onClick={handleDecisionSubmit}
-                  disabled={isSubmitting || (requiresComment && !decisionComment?.trim())}
-                  className={`${
-                    getDecisionConfig(decisionType)?.color === 'success' ? 'bg-green-600 hover:bg-green-700' :
-                    getDecisionConfig(decisionType)?.color === 'error' ? 'bg-red-600 hover:bg-red-700' :
-                    'bg-orange-600 hover:bg-orange-700'
-                  } text-white`}
-                  iconName={getDecisionConfig(decisionType)?.icon}
-                >
-                  {isSubmitting ? 'Enregistrement...' : 'Confirmer'}
-                </Button>
-              </div>
-            </div>
+                              </div>
+                              <div>
+                                <div className="font-medium text-text-primary text-sm">
+                                  {entry?.reviewer?.name}
+                                </div>
+                                <div className="text-xs font-caption text-text-secondary">
+                                  {entry?.reviewer?.role}
+                                  {entry?.reviewer?.department && ` • ${entry?.reviewer?.department}`}
+                                </div>
+                              </div>
+                            </div>
+                      }
+                          
+                          {/* Changes Made */}
+                          {entry?.changes && entry?.changes?.length > 0 &&
+                      <div className="p-3 bg-background border border-border rounded-lg">
+                              <div className="text-sm font-medium text-text-primary mb-2">
+                                Modifications apportées :
+                              </div>
+                              <ul className="space-y-1">
+                                {entry?.changes?.map((change, changeIndex) =>
+                          <li key={changeIndex} className="text-sm text-text-secondary flex items-start space-x-2">
+                                    <Icon name="ArrowRight" size={14} className="text-accent mt-0.5 flex-shrink-0" />
+                                    <span>{change}</span>
+                                  </li>
+                          )}
+                              </ul>
+                            </div>
+                      }
+                          
+                          {/* Full Comment */}
+                          {entry?.comment?.length > 100 &&
+                      <div className="p-3 bg-background border border-border rounded-lg">
+                              <div className="text-sm font-medium text-text-primary mb-2">
+                                Commentaire complet :
+                              </div>
+                              <div className="text-sm text-text-secondary whitespace-pre-wrap">
+                                {entry?.comment}
+                              </div>
+                            </div>
+                      }
+                          
+                          {/* Timestamp Details */}
+                          <div className="text-xs font-caption text-text-secondary">
+                            Date exacte : {entry?.timestamp?.toLocaleDateString('fr-FR', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                          </div>
+                        </div>
+                    }
+                    </div>
+                  </div>
+                </div>);
+
+          })}
+          </div>
+        }
+      </div>
+      {/* Footer */}
+      <div className="p-4 border-t border-border bg-muted/30">
+        <div className="flex items-center justify-between text-sm font-caption text-text-secondary">
+          <div className="flex items-center space-x-2">
+            <Icon name="Info" size={14} />
+            <span>Historique complet des actions de validation</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Icon name="Clock" size={14} />
+            <span>Mis à jour automatiquement</span>
           </div>
         </div>
-      )}
-    </>
-  );
+      </div>
+    </div>);
+
 };
 
-export default ValidationActions;
+export default ValidationHistory;
