@@ -15,17 +15,17 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
     reviewer: {
       name: 'Dr. Marie Dubois',
       role: 'Enseignant',
-      department: 'Génie Logiciel',
+      department: 'GÃ©nie Logiciel',
       avatar: "https://img.rocket.new/generatedImages/rocket_gen_img_11b715d60-1762273834012.png",
       avatarAlt: 'Professional headshot of middle-aged woman with brown hair in academic setting'
     },
     timestamp: new Date(Date.now() - 86400000 * 3), // 3 days ago
-    comment: `Révision requise pour améliorer la méthodologie de recherche. Les sections suivantes nécessitent des modifications :\n\n1. Chapitre 2 : Ajouter plus de références récentes (2022-2024)\n2. Méthodologie : Détailler les critères de sélection des participants\n3. Analyse : Inclure des tests statistiques appropriés`,
+    comment: `RÃ©vision requise pour amÃ©liorer la mÃ©thodologie de recherche. Les sections suivantes nÃ©cessitent des modifications :\n\n1. Chapitre 2 : Ajouter plus de rÃ©fÃ©rences rÃ©centes (2022-2024)\n2. MÃ©thodologie : DÃ©tailler les critÃ¨res de sÃ©lection des participants\n3. Analyse : Inclure des tests statistiques appropriÃ©s`,
     deadline: new Date(Date.now() + 86400000 * 14), // 14 days from now
     changes: [
-    'Statut changé de "En révision" à "Révision requise"',
-    'Délai de révision fixé à 14 jours',
-    'Notification envoyée à l\'étudiant']
+    'Statut changÃ© de "En rÃ©vision" Ã  "RÃ©vision requise"',
+    'DÃ©lai de rÃ©vision fixÃ© Ã  14 jours',
+    'Notification envoyÃ©e Ã  l\'Ã©tudiant']
 
   },
   {
@@ -33,15 +33,15 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
     action: 'submitted',
     status: 'pending',
     reviewer: {
-      name: 'Système',
+      name: 'SystÃ¨me',
       role: 'Automatique'
     },
     timestamp: new Date(Date.now() - 86400000 * 7), // 7 days ago
-    comment: 'Rapport soumis pour validation par l\'étudiant Ahmed Ben Salem.',
+    comment: 'Rapport soumis pour validation par l\'Ã©tudiant Ahmed Ben Salem.',
     changes: [
-    'Document PDF téléchargé (2.4 MB)',
-    'Métadonnées validées',
-    'Assigné à Dr. Marie Dubois pour révision']
+    'Document PDF tÃ©lÃ©chargÃ© (2.4 MB)',
+    'MÃ©tadonnÃ©es validÃ©es',
+    'AssignÃ© Ã  Dr. Marie Dubois pour rÃ©vision']
 
   },
   {
@@ -50,14 +50,14 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
     status: 'draft',
     reviewer: {
       name: 'Ahmed Ben Salem',
-      role: 'Étudiant'
+      role: 'Ã‰tudiant'
     },
     timestamp: new Date(Date.now() - 86400000 * 14), // 14 days ago
-    comment: 'Brouillon initial créé avec les métadonnées de base.',
+    comment: 'Brouillon initial crÃ©Ã© avec les mÃ©tadonnÃ©es de base.',
     changes: [
-    'Nouveau rapport créé',
-    'Titre défini',
-    'Spécialité et année académique renseignées']
+    'Nouveau rapport crÃ©Ã©',
+    'Titre dÃ©fini',
+    'SpÃ©cialitÃ© et annÃ©e acadÃ©mique renseignÃ©es']
 
   }];
 
@@ -73,31 +73,31 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
         bgColor: 'bg-accent/10'
       },
       revision_requested: {
-        label: 'Révision demandée',
+        label: 'RÃ©vision demandÃ©e',
         icon: 'RotateCcw',
         color: 'text-warning',
         bgColor: 'bg-warning/10'
       },
       validated: {
-        label: 'Validé',
+        label: 'ValidÃ©',
         icon: 'CheckCircle',
         color: 'text-success',
         bgColor: 'bg-success/10'
       },
       rejected: {
-        label: 'Rejeté',
+        label: 'RejetÃ©',
         icon: 'XCircle',
         color: 'text-error',
         bgColor: 'bg-error/10'
       },
       draft_created: {
-        label: 'Brouillon créé',
+        label: 'Brouillon crÃ©Ã©',
         icon: 'FileText',
         color: 'text-neutral',
         bgColor: 'bg-muted'
       },
       comment_added: {
-        label: 'Commentaire ajouté',
+        label: 'Commentaire ajoutÃ©',
         icon: 'MessageSquare',
         color: 'text-accent',
         bgColor: 'bg-accent/10'
@@ -144,7 +144,7 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
           </h3>
           <div className="flex items-center space-x-2">
             <span className="text-sm font-caption text-text-secondary">
-              {allHistory?.length} entrée{allHistory?.length !== 1 ? 's' : ''}
+              {allHistory?.length} entrÃ©e{allHistory?.length !== 1 ? 's' : ''}
             </span>
             <Button variant="ghost" size="sm" iconName="Download">
               Exporter
@@ -200,11 +200,11 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
                               <span>{entry?.reviewer?.name}</span>
                               {entry?.reviewer?.role !== 'Automatique' &&
                             <>
-                                  <span>•</span>
+                                  <span>â€¢</span>
                                   <span>{entry?.reviewer?.role}</span>
                                 </>
                             }
-                              <span>•</span>
+                              <span>â€¢</span>
                               <span>{formatTimestamp(entry?.timestamp)}</span>
                             </div>
                           </div>
@@ -212,7 +212,7 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
                           <div className="flex items-center space-x-2">
                             {entry?.deadline &&
                           <div className="text-xs font-caption text-warning">
-                                Échéance: {entry?.deadline?.toLocaleDateString('fr-FR')}
+                                Ã‰chÃ©ance: {entry?.deadline?.toLocaleDateString('fr-FR')}
                               </div>
                           }
                             <Icon
@@ -251,7 +251,7 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
                                 </div>
                                 <div className="text-xs font-caption text-text-secondary">
                                   {entry?.reviewer?.role}
-                                  {entry?.reviewer?.department && ` • ${entry?.reviewer?.department}`}
+                                  {entry?.reviewer?.department && ` â€¢ ${entry?.reviewer?.department}`}
                                 </div>
                               </div>
                             </div>
@@ -261,7 +261,7 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
                           {entry?.changes && entry?.changes?.length > 0 &&
                       <div className="p-3 bg-background border border-border rounded-lg">
                               <div className="text-sm font-medium text-text-primary mb-2">
-                                Modifications apportées :
+                                Modifications apportÃ©es :
                               </div>
                               <ul className="space-y-1">
                                 {entry?.changes?.map((change, changeIndex) =>
@@ -316,7 +316,7 @@ const ValidationHistory = ({ reportData, historyData = [] }) => {
           </div>
           <div className="flex items-center space-x-2">
             <Icon name="Clock" size={14} />
-            <span>Mis à jour automatiquement</span>
+            <span>Mis Ã  jour automatiquement</span>
           </div>
         </div>
       </div>

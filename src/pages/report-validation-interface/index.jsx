@@ -8,6 +8,7 @@ import Button from '../../components/ui/Button';
 
 import PDFViewer from './components/PDFViewer';
 import ValidationChecklist from './components/ValidationChecklist';
+import CommentSystem from './components/CommentSystem';
 import ValidationActions from './components/ValidationActions';
 import ValidationHistory from './components/ValidationHistory';
 
@@ -29,9 +30,10 @@ const ReportValidationInterface = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
+  const [comments, setComments] = useState([]);
   const [validationHistory, setValidationHistory] = useState([]);
   const [checklistData, setChecklistData] = useState({});
-  const [checklistProgress, setChecklistProgress] = useState(0);
+  const [checklistProgress, setChecklistProgress] = useState(0); // â† NOUVEAU: Ã‰tat sÃ©parÃ© pour la progression
   const [saving, setSaving] = useState(false);
 
   const currentUser = {
@@ -54,7 +56,7 @@ const ReportValidationInterface = () => {
       setError(null);
 
       const response = await teacherReportsAPI.getReportById(reportId);
-      if (!response.success || !response.data) throw new Error('Rapport non trouvé');
+      if (!response.success || !response.data) throw new Error('Rapport non trouvÃ©');
 
       const report = response.data;
 
@@ -69,7 +71,7 @@ const ReportValidationInterface = () => {
         title: report.title || 'Sans titre',
         studentName: `${report.author_first_name || ''} ${report.author_last_name || ''}`.trim(),
         studentEmail: report.student_email || report.email || 'N/A',
-        specialty: report.specialty || 'Non spécifié',
+        specialty: report.specialty || 'Non spÃ©cifiÃ©',
         submissionDate: new Date(report.submission_date),
         fileSize: report.file_size ? `${(report.file_size / 1024 / 1024).toFixed(2)} MB` : 'N/A',
         file_url: report.file_url,
@@ -79,20 +81,28 @@ const ReportValidationInterface = () => {
         validatedAt: report.validated_at
       });
 
+      setComments((report.comments || []).map(c => ({
+        id: c.id,
+        content: c.content,
+        author: c.teacher_name || 'Enseignant',
+        date: new Date(c.created_at),
+        updatedAt: c.updated_at ? new Date(c.updated_at) : null
+      })));
+
       setValidationHistory(report.validation_history || []);
       
-      // Restaurer les données du checklist ET la progression
+      // âœ… Restaurer les donnÃ©es du checklist ET la progression
       const savedChecklist = report.checklist_data || {};
       setChecklistData(savedChecklist);
       
-      // Restaurer la progression sauvegardée
+      // Restaurer la progression sauvegardÃ©e
       const savedProgress = report.checklist_progress !== undefined 
         ? report.checklist_progress 
         : 0;
       setChecklistProgress(savedProgress);
       
-      console.log('📊 Checklist restaurée:', savedChecklist);
-      console.log('📈 Progression restaurée:', savedProgress + '%');
+      console.log('ðŸ“Š Checklist restaurÃ©e:', savedChecklist);
+      console.log('ðŸ“ˆ Progression restaurÃ©e:', savedProgress + '%');
 
     } catch (err) {
       console.error('Failed to load report:', err);
@@ -114,22 +124,37 @@ const ReportValidationInterface = () => {
     }
   };
 
+  // âœ… CORRECTION: Recevoir les donnÃ©es avec la progression et les sauvegarder
   const handleChecklistUpdate = async (data) => {
+    // data contient maintenant { checklist, progress }
     setChecklistData(data.checklist);
     setChecklistProgress(data.progress.percentage);
     
-    console.log('💾 Sauvegarde checklist:', data.progress.percentage + '%');
+    console.log('ðŸ’¾ Sauvegarde checklist:', data.progress.percentage + '%');
     
-    // Sauvegarder automatiquement dans la base de données
+    // âœ… Sauvegarder automatiquement dans la base de donnÃ©es
     try {
       await teacherReportsAPI.updateChecklist(reportId, {
         checklist: data.checklist,
         progress: data.progress.percentage
       });
-      console.log('✅ Checklist sauvegardée avec succès');
+      console.log('âœ… Checklist sauvegardÃ©e avec succÃ¨s');
     } catch (err) {
-      console.error('❌ Erreur lors de la sauvegarde du checklist:', err);
+      console.error('âŒ Erreur lors de la sauvegarde du checklist:', err);
+      // On n'affiche pas d'alerte pour ne pas perturber l'UX
     }
+  };
+
+  const handleAddComment = (comment) => {
+    setComments(prev => [...prev, { ...comment, id: Date.now() }]);
+  };
+
+  const handleUpdateComment = (id, updates) => {
+    setComments(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  const handleDeleteComment = (id) => {
+    setComments(prev => prev.filter(c => c.id !== id));
   };
 
   if (loading) {
@@ -177,7 +202,7 @@ const ReportValidationInterface = () => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">{reportData.title}</h1>
                 <p className="text-gray-600 mt-1">
-                  Par <strong>{reportData.studentName}</strong> • {reportData.specialty}
+                  Par <strong>{reportData.studentName}</strong> â€¢ {reportData.specialty}
                 </p>
               </div>
               <div className="text-right">
@@ -190,7 +215,7 @@ const ReportValidationInterface = () => {
 
         {/* Main Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* PDF Viewer – 2 colonnes */}
+          {/* PDF Viewer â€“ 2 colonnes */}
           <div className="xl:col-span-2">
             <PDFViewer 
               reportData={reportData} 
@@ -212,10 +237,14 @@ const ReportValidationInterface = () => {
               </div>
               <div className="p-5">
                 {activeTab === 'validation' ? (
-                  <div className="text-center">
+                  <div className="grid grid-cols-2 gap-4 text-center">
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-3xl font-bold text-blue-600">{Math.round(checklistProgress)}%</div>
-                      <div className="text-xs text-gray-600">Checklist complétée</div>
+                      <div className="text-xs text-gray-600">Checklist</div>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="text-3xl font-bold text-blue-600">{comments.length}</div>
+                      <div className="text-xs text-gray-600">Commentaires</div>
                     </div>
                   </div>
                 ) : (
@@ -229,18 +258,26 @@ const ReportValidationInterface = () => {
               onValidate={(data) => handleValidation('validated', data.comment)}
               onReject={(data) => handleValidation('rejected', data.comment)}
               onRequestRevision={(data) => handleValidation('revision_requested', data.comment)}
-              checklistProgress={checklistProgress}
-              hasComments={false}
+              checklistProgress={checklistProgress} // â† Passe maintenant la vraie progression
+              hasComments={comments.length > 0}
             />
           </div>
         </div>
 
-        {/* Checklist en pleine largeur */}
-        <div className="mt-8">
+        {/* Checklist + Commentaires */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ValidationChecklist
             reportData={reportData}
             onChecklistUpdate={handleChecklistUpdate}
             checklistData={checklistData}
+          />
+          <CommentSystem
+            reportData={reportData}
+            comments={comments}
+            onAddComment={handleAddComment}
+            onUpdateComment={handleUpdateComment}
+            onDeleteComment={handleDeleteComment}
+            currentUser={currentUser}
           />
         </div>
       </main>
